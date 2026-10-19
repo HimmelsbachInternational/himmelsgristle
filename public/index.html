@@ -132,6 +132,25 @@
   #poort p { color: var(--stil); text-align: center; font-size: 13px; max-width: 320px; line-height: 1.5; margin: 6px 0; }
   #poort button { flex: none; width: 100%; max-width: 320px; margin-top: 12px; }
   #poort button.uit { color: var(--stil); border-style: dashed; }
+
+  /* patronen */
+  .patronen button { min-height: 44px; font-size: 18px; }
+  .patronen button.wis { flex: 0.8; font-size: 12px; color: var(--stil); }
+  .patronen button.actief { background: var(--tekst); color: var(--zwart); border-color: var(--tekst); }
+  .patronen button.volgend { border-color: var(--sein); color: var(--sein); }
+  .patronen button.leeg { color: var(--stil); }
+
+  /* sessie */
+  .sessienaam { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+  #sessieLijst button { min-height: 44px; font-size: 14px; text-align: left; padding: 0 10px; }
+  #sessieLijst .rij button.klein { flex: none; width: 52px; text-align: center; color: var(--stil); font-size: 12px; }
+
+  /* melding */
+  .melding {
+    position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 20; padding: 14px;
+    background: var(--sein); color: var(--zwart); font-weight: bold; letter-spacing: 3px; text-align: center; font-size: 15px;
+  }
+  .melding small { display: block; letter-spacing: 1px; font-weight: normal; font-size: 12px; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -141,8 +160,9 @@
   <p>Kies wat dit toestel wordt.</p>
   <button class="groot sein" id="kiesDrums">DRUMS</button>
   <button class="groot sein" id="kiesBas">BAS</button>
+  <button class="groot sein" id="kiesLead">LEAD</button>
   <button class="groot" id="kiesKlik">KLIKTEST</button>
-  <button class="uit" id="kiesLater">LEAD &middot; PAD<br><small>komt nog</small></button>
+  <button class="uit" id="kiesLater">PAD<br><small>komt nog</small></button>
   <p id="poortinfo"></p>
 </div>
 
@@ -178,6 +198,12 @@
   <button id="tplus">+</button>
 </div>
 
+<!-- Patronen -->
+<div class="rij patronen verborgen" id="patronen">
+  <button id="patA">A</button><button id="patB">B</button><button id="patC">C</button><button id="patD">D</button>
+  <button id="patWis" class="wis">WIS</button>
+</div>
+
 <!-- Drums -->
 <div id="drumsDeel" class="verborgen">
   <div class="matrix" id="drumMatrix"></div>
@@ -192,27 +218,27 @@
   </div>
 </div>
 
-<!-- Bas -->
-<div id="basDeel" class="verborgen">
-  <div class="matrix noten" id="basMatrix"></div>
+<!-- Bas en lead -->
+<div id="notenDeel" class="verborgen">
+  <div class="matrix noten" id="notenMatrix"></div>
   <p class="uitleg">Een noot per stap. Nog eens tikken: accent. Nog eens: uit.</p>
   <div class="rij">
-    <button id="basKlankKnop">KLANK</button>
+    <button id="notenKlankKnop">KLANK</button>
   </div>
-  <div class="paneel verborgen" id="basPaneel">
+  <div class="paneel verborgen" id="notenPaneel">
     <div class="pkop">
-      <span class="ptitel">BAS</span>
-      <button id="basDicht">X</button>
+      <span class="ptitel" id="notenTitel">BAS</span>
+      <button id="notenDicht">X</button>
     </div>
     <div class="label" style="margin-top:4px">grondtoon</div>
     <div class="rij">
-      <button id="basOctMin">OCT -</button>
-      <button id="basMin">-</button>
-      <div class="waarde" id="basGrond">C2</div>
-      <button id="basPlus">+</button>
-      <button id="basOctPlus">OCT +</button>
+      <button id="notenOctMin">OCT -</button>
+      <button id="notenMin">-</button>
+      <div class="waarde" id="notenGrond">C2</div>
+      <button id="notenPlus">+</button>
+      <button id="notenOctPlus">OCT +</button>
     </div>
-    <div class="knoppen" id="basKnoppen"></div>
+    <div class="knoppen" id="notenKnoppen"></div>
   </div>
 </div>
 
@@ -242,6 +268,15 @@
     <button id="klikAan">KLIK UIT</button>
   </div>
 
+  <div class="label">sessie</div>
+  <div class="sessienaam" id="sessieNaam">nog niet bewaard</div>
+  <div class="rij">
+    <button id="sessieBewaar">OPSLAAN ALS</button>
+    <button id="sessieNieuw">NIEUW</button>
+  </div>
+  <div id="sessieLijst"></div>
+  <p class="uitleg">Klank en patronen worden ook gewoon onthouden op de Masterblaster. Opslaan als bewaart een kopie onder een naam, die je later weer kunt laden.</p>
+
   <div class="label">naam van dit toestel</div>
   <input type="text" id="naam" maxlength="30" autocomplete="off">
 
@@ -251,6 +286,7 @@
   </div>
 </div>
 
+<div class="melding verborgen" id="melding"></div>
 <div class="status" id="status">verbinden...</div>
 <div class="voet" id="voet">Himmelsgristle</div>
 
@@ -259,7 +295,7 @@
 <script src="js/klok.js"></script>
 <script src="js/klank.js"></script>
 <script src="js/drums.js"></script>
-<script src="js/bas.js"></script>
+<script src="js/mono.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

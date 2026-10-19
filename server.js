@@ -8,7 +8,7 @@ var path = require('path');
 var os = require('os');
 var perf = require('perf_hooks').performance;
 
-var VERSIE = '0.3';
+var VERSIE = '0.4';
 var PORT = parseInt(process.env.PORT, 10) || 8080;
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -88,6 +88,8 @@ function publicState() {
     anchorBeat: state.anchorBeat,
     beatsPerBar: state.beatsPerBar,
     prev: state.prev,
+    laadVersie: laadVersie,
+    sessieNaam: sessie.naam,
     serverTime: t,
     players: list
   };
@@ -135,6 +137,62 @@ function info() {
   };
 }
 
+// ---------- opslag: klank en patronen per rol, en hele sessies ----------
+// Alles staat in de map opslag/ naast de server. Die map valt buiten git, dus bijwerken laat hem staan.
+
+var OPSLAG = path.join(__dirname, 'opslag');
+var SESSIES = path.join(OPSLAG, 'sessies');
+try { fs.mkdirSync(SESSIES, { recursive: true }); } catch (e) {}
+
+var HUIDIG = path.join(OPSLAG, 'huidig.json');
+var sessie = { naam: '', rollen: {} };
+try { sessie = JSON.parse(fs.readFileSync(HUIDIG, 'utf8')); if (!sessie.rollen) sessie.rollen = {}; } catch (e) {}
+var laadVersie = 1;
+
+var schrijfTimer = null;
+function bewaarHuidig() {
+  clearTimeout(schrijfTimer);
+  schrijfTimer = setTimeout(function () {
+    fs.writeFile(HUIDIG + '.tmp', JSON.stringify(sessie), function (err) {
+      if (!err) fs.rename(HUIDIG + '.tmp', HUIDIG, function () {});
+    });
+  }, 500);
+}
+
+function schoneNaam(n) {
+  return String(n || '').replace(/[^A-Za-z0-9 _\-]/g, '').trim().slice(0, 40);
+}
+
+function sessieLijst() {
+  try {
+    return fs.readdirSync(SESSIES).filter(function (f) { return /\.json$/.test(f); })
+      .map(function (f) { return f.replace(/\.json$/, ''); }).sort();
+  } catch (e) { return []; }
+}
+
+function sessieActie(body) {
+  var naam = schoneNaam(body.naam);
+  if (body.actie === 'bewaar' && naam) {
+    sessie.naam = naam;
+    fs.writeFileSync(path.join(SESSIES, naam + '.json'), JSON.stringify(sessie));
+    bewaarHuidig();
+  } else if (body.actie === 'laad' && naam) {
+    try {
+      var s = JSON.parse(fs.readFileSync(path.join(SESSIES, naam + '.json'), 'utf8'));
+      sessie = { naam: naam, rollen: s.rollen || {} };
+      laadVersie++;
+      bewaarHuidig();
+    } catch (e) {}
+  } else if (body.actie === 'nieuw') {
+    sessie = { naam: '', rollen: {} };
+    laadVersie++;
+    bewaarHuidig();
+  } else if (body.actie === 'wis' && naam) {
+    try { fs.unlinkSync(path.join(SESSIES, naam + '.json')); } catch (e) {}
+  }
+  return { naam: sessie.naam, lijst: sessieLijst(), laadVersie: laadVersie };
+}
+
 // ---------- http ----------
 
 var TYPES = {
@@ -160,7 +218,7 @@ function sendJSON(res, obj) { send(res, 200, 'application/json', JSON.stringify(
 
 function readBody(req, cb) {
   var data = '';
-  req.on('data', function (c) { data += c; if (data.length > 10000) req.destroy(); });
+  req.on('data', function (c) { data += c; if (data.length > 200000) req.destroy(); });
   req.on('end', function () {
     try { cb(JSON.parse(data || '{}')); } catch (e) { cb({}); }
   });
@@ -184,6 +242,24 @@ var server = http.createServer(function (req, res) {
 
   if (url === '/api/state' && req.method === 'POST') {
     return readBody(req, function (body) { applyChange(body); sendJSON(res, publicState()); });
+  }
+
+  if (url === '/api/opslag' && req.method === 'GET') {
+    var rol = (req.url.split('rol=')[1] || '').split('&')[0];
+    return sendJSON(res, { data: sessie.rollen[rol] || null, laadVersie: laadVersie });
+  }
+
+  if (url === '/api/opslag' && req.method === 'POST') {
+    return readBody(req, function (body) {
+      var r = String(body.rol || '').replace(/[^a-z]/g, '').slice(0, 20);
+      if (r && body.data && typeof body.data === 'object') { sessie.rollen[r] = body.data; bewaarHuidig(); }
+      sendJSON(res, { ok: true });
+    });
+  }
+
+  if (url === '/api/sessies') {
+    if (req.method === 'POST') return readBody(req, function (body) { sendJSON(res, sessieActie(body)); });
+    return sendJSON(res, { naam: sessie.naam, lijst: sessieLijst(), laadVersie: laadVersie });
   }
 
   if (url === '/api/info') {
