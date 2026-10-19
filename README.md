@@ -4,14 +4,15 @@ Een synthnetwerk van oude telefoons die samen in sync spelen. Eén telefoon is d
 
 Richting: industrial en electroclash. Koud, ritmisch, een beetje vuil.
 
-## Wat er nu in zit (versie 0.4)
+## Wat er nu in zit (versie 0.5)
 
 - Gedeelde klok tussen alle toestellen, met strak instappen op de maat en tempowissels op de volgende maat
 - **Drums:** vijf gesynthetiseerde stemmen (kick, snare, hihat, clap, metaal) in een matrix van 16 stappen, met accent per stap. Tik op de naam van een stem voor zijn knoppen, waaronder **Vuil** (overstuuring en bitcrush)
 - **Bas:** een monofone bas met resonant filter, glide en vuil, en een notenmatrix van een octaaf over 16 stappen
 - **Lead:** twee ontstemde oscillators met vibrato, filter, glide en vuil
 - **Patronen A tot D** per toestel; een wissel tijdens het spelen valt op de volgende maat
-- **Opslag op de Masterblaster:** klank en patronen per rol worden bewaard, en komen terug als een toestel opnieuw aanhaakt (*Persistence is all*). Hele sessies kun je onder een naam bewaren en later weer laden
+- **Plekken:** elk instrument heeft een eigen plek in de sessie (BAS 1, BAS 2, DRUMS 1...) met eigen klank en patronen, en een naam die je zelf kiest. Een toestel dat terugkomt krijgt zijn plek terug (*Persistence is all*)
+- **Opslaan en uitwisselen:** sessies bewaren en laden op de Masterblaster, een klankbibliotheek per rol, en export en import van klanken, instrumenten en hele sessies als bestand
 - **Kliktest:** voor het afstellen van de compensatie per toestel
 - Op de Masterblaster: het spelersadres en een QR-code, die vanzelf inklapt zodra er een speler aangehaakt is
 
@@ -46,3 +47,15 @@ Alleen de Masterblaster hoeft bijgewerkt te worden; de spelers laden alles van h
 De spelers vragen de Masterblaster steeds hoe laat het is en rekenen het verschil met hun eigen klok uit. Elke noot wordt een fractie van een seconde vooruit ingepland op de audioklok van het toestel zelf. Daardoor maakt een haperende wifi-verbinding niet uit voor de timing. Alles is gewone JavaScript, zodat ook oude telefoons en tablets meedoen.
 
 De QR-code wordt gemaakt met [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) van Kazuhiko Arase (MIT-licentie).
+
+## Bestanden uitwisselen
+
+Onder INSTELLINGEN kun je drie soorten bestanden exporteren en weer importeren:
+
+| Soort | Wat erin zit |
+| --- | --- |
+| Klank | de stand van de knoppen van één instrument |
+| Instrument | klank plus de patronen A tot D |
+| Sessie | alle plekken, met het tempo |
+
+Het zijn gewone JSON-bestanden met een kop als `{ "himmelsgristle": 1, "soort": "klank", "rol": "bas", ... }`. Importeren herkent zelf welke soort het is.

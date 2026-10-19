@@ -142,8 +142,11 @@
 
   /* sessie */
   .sessienaam { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
-  #sessieLijst button { min-height: 44px; font-size: 14px; text-align: left; padding: 0 10px; }
-  #sessieLijst .rij button.klein { flex: none; width: 52px; text-align: center; color: var(--stil); font-size: 12px; }
+  #plekLijst button.huidig { background: var(--tekst); color: var(--zwart); }
+  #plekLijst button[disabled] { color: var(--stil); border-style: dashed; }
+  .rij button.half { font-size: 13px; }
+  #sessieLijst button, #plekLijst button, #klankLijst button { min-height: 44px; font-size: 14px; text-align: left; padding: 0 10px; }
+  #sessieLijst .rij button.klein, #klankLijst .rij button.klein, #plekLijst .rij button.klein { flex: none; width: 52px; text-align: center; color: var(--stil); font-size: 12px; }
 
   /* melding */
   .melding {
@@ -268,6 +271,22 @@
     <button id="klikAan">KLIK UIT</button>
   </div>
 
+  <div class="label">dit instrument</div>
+  <div class="sessienaam" id="plekNaam"></div>
+  <div class="rij">
+    <button class="half" id="plekHernoem">HERNOEMEN</button>
+    <button class="half" id="plekNieuw">NIEUWE PLEK</button>
+  </div>
+  <div id="plekLijst"></div>
+  <p class="uitleg">Elk instrument heeft een eigen plek in de sessie, met eigen klank en patronen. Twee bassen? Dan krijgt de tweede vanzelf BAS 2.</p>
+
+  <div class="label">klankbibliotheek</div>
+  <div class="rij">
+    <button id="klankBewaar">KLANK BEWAREN</button>
+  </div>
+  <div id="klankLijst"></div>
+  <p class="uitleg">Een klank is alleen de stand van de knoppen. Laden verandert je patronen niet.</p>
+
   <div class="label">sessie</div>
   <div class="sessienaam" id="sessieNaam">nog niet bewaard</div>
   <div class="rij">
@@ -275,7 +294,19 @@
     <button id="sessieNieuw">NIEUW</button>
   </div>
   <div id="sessieLijst"></div>
-  <p class="uitleg">Klank en patronen worden ook gewoon onthouden op de Masterblaster. Opslaan als bewaart een kopie onder een naam, die je later weer kunt laden.</p>
+  <p class="uitleg">Alles wordt ook gewoon onthouden op de Masterblaster. Opslaan als bewaart een kopie onder een naam, met het tempo erbij.</p>
+
+  <div class="label">uitwisselen</div>
+  <div class="rij">
+    <button class="half" id="exportKlank">EXPORT KLANK</button>
+    <button class="half" id="exportInstrument">EXPORT INSTRUMENT</button>
+  </div>
+  <div class="rij">
+    <button class="half" id="exportSessie">EXPORT SESSIE</button>
+    <button class="half" id="importKnop">IMPORTEREN</button>
+  </div>
+  <input type="file" id="importBestand" accept=".json,application/json,text/plain" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+  <p class="uitleg">Exporteren maakt een bestand dat je kunt delen. Importeren herkent zelf of het een klank, instrument of sessie is.</p>
 
   <div class="label">naam van dit toestel</div>
   <input type="text" id="naam" maxlength="30" autocomplete="off">

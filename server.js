@@ -8,7 +8,7 @@ var path = require('path');
 var os = require('os');
 var perf = require('perf_hooks').performance;
 
-var VERSIE = '0.4';
+var VERSIE = '0.5';
 var PORT = parseInt(process.env.PORT, 10) || 8080;
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -88,8 +88,8 @@ function publicState() {
     anchorBeat: state.anchorBeat,
     beatsPerBar: state.beatsPerBar,
     prev: state.prev,
-    laadVersie: laadVersie,
-    sessieNaam: sessie.naam,
+    laadVersie: opslag.laadVersie(),
+    sessieNaam: opslag.sessieNaam(),
     serverTime: t,
     players: list
   };
@@ -137,60 +137,23 @@ function info() {
   };
 }
 
-// ---------- opslag: klank en patronen per rol, en hele sessies ----------
-// Alles staat in de map opslag/ naast de server. Die map valt buiten git, dus bijwerken laat hem staan.
+// ---------- opslag ----------
 
-var OPSLAG = path.join(__dirname, 'opslag');
-var SESSIES = path.join(OPSLAG, 'sessies');
-try { fs.mkdirSync(SESSIES, { recursive: true }); } catch (e) {}
+var opslag = require('./lib/opslag')(__dirname);
 
-var HUIDIG = path.join(OPSLAG, 'huidig.json');
-var sessie = { naam: '', rollen: {} };
-try { sessie = JSON.parse(fs.readFileSync(HUIDIG, 'utf8')); if (!sessie.rollen) sessie.rollen = {}; } catch (e) {}
-var laadVersie = 1;
-
-var schrijfTimer = null;
-function bewaarHuidig() {
-  clearTimeout(schrijfTimer);
-  schrijfTimer = setTimeout(function () {
-    fs.writeFile(HUIDIG + '.tmp', JSON.stringify(sessie), function (err) {
-      if (!err) fs.rename(HUIDIG + '.tmp', HUIDIG, function () {});
-    });
-  }, 500);
-}
-
-function schoneNaam(n) {
-  return String(n || '').replace(/[^A-Za-z0-9 _\-]/g, '').trim().slice(0, 40);
-}
-
-function sessieLijst() {
-  try {
-    return fs.readdirSync(SESSIES).filter(function (f) { return /\.json$/.test(f); })
-      .map(function (f) { return f.replace(/\.json$/, ''); }).sort();
-  } catch (e) { return []; }
-}
-
-function sessieActie(body) {
-  var naam = schoneNaam(body.naam);
-  if (body.actie === 'bewaar' && naam) {
-    sessie.naam = naam;
-    fs.writeFileSync(path.join(SESSIES, naam + '.json'), JSON.stringify(sessie));
-    bewaarHuidig();
-  } else if (body.actie === 'laad' && naam) {
-    try {
-      var s = JSON.parse(fs.readFileSync(path.join(SESSIES, naam + '.json'), 'utf8'));
-      sessie = { naam: naam, rollen: s.rollen || {} };
-      laadVersie++;
-      bewaarHuidig();
-    } catch (e) {}
-  } else if (body.actie === 'nieuw') {
-    sessie = { naam: '', rollen: {} };
-    laadVersie++;
-    bewaarHuidig();
-  } else if (body.actie === 'wis' && naam) {
-    try { fs.unlinkSync(path.join(SESSIES, naam + '.json')); } catch (e) {}
+// Welke plek een ander toestel nu gebruikt (toestellen die de laatste 5 seconden iets lieten horen).
+function bezet(plekId, apparaat) {
+  var t = now();
+  for (var id in players) {
+    if (id !== apparaat && players[id].plek === plekId && t - players[id].seen < 5000) return true;
   }
-  return { naam: sessie.naam, lijst: sessieLijst(), laadVersie: laadVersie };
+  return false;
+}
+
+function zetTempo(bpm) {
+  if (typeof bpm !== 'number' || !bpm) return;
+  if (state.running) applyChange({ action: 'tempo', bpm: bpm });
+  else { state.bpm = Math.max(40, Math.min(240, bpm)); state.version++; }
 }
 
 // ---------- http ----------
@@ -244,22 +207,78 @@ var server = http.createServer(function (req, res) {
     return readBody(req, function (body) { applyChange(body); sendJSON(res, publicState()); });
   }
 
-  if (url === '/api/opslag' && req.method === 'GET') {
-    var rol = (req.url.split('rol=')[1] || '').split('&')[0];
-    return sendJSON(res, { data: sessie.rollen[rol] || null, laadVersie: laadVersie });
-  }
+  var vraag = {};
+  (req.url.split('?')[1] || '').split('&').forEach(function (kv) {
+    var d = kv.split('=');
+    if (d[0]) { try { vraag[d[0]] = decodeURIComponent((d[1] || '').replace(/\+/g, ' ')); } catch (e) {} }
+  });
 
-  if (url === '/api/opslag' && req.method === 'POST') {
+  if (url === '/api/plek' && req.method === 'POST') {
     return readBody(req, function (body) {
-      var r = String(body.rol || '').replace(/[^a-z]/g, '').slice(0, 20);
-      if (r && body.data && typeof body.data === 'object') { sessie.rollen[r] = body.data; bewaarHuidig(); }
-      sendJSON(res, { ok: true });
+      var apparaat = String(body.apparaat || '').slice(0, 40);
+      var uit = opslag.kiesPlek(String(body.rol || ''), apparaat, String(body.plek || ''), !!body.nieuw, bezet);
+      if (uit && apparaat) {
+        if (!players[apparaat]) players[apparaat] = { id: apparaat, name: '', role: uit.rol, latency: 0, rtt: 0 };
+        players[apparaat].plek = uit.plek;
+        players[apparaat].seen = now();
+      }
+      sendJSON(res, uit || { fout: 'onbekende rol' });
     });
   }
 
+  if (url === '/api/plek/data' && req.method === 'POST') {
+    return readBody(req, function (body) { sendJSON(res, { ok: opslag.plekData(String(body.plek || ''), body.data) }); });
+  }
+
+  if (url === '/api/plek/naam' && req.method === 'POST') {
+    return readBody(req, function (body) { sendJSON(res, { ok: opslag.plekNaam(String(body.plek || ''), body.naam) }); });
+  }
+
+  if (url === '/api/plekken') {
+    return sendJSON(res, { plekken: opslag.plekLijst(bezet) });
+  }
+
   if (url === '/api/sessies') {
-    if (req.method === 'POST') return readBody(req, function (body) { sendJSON(res, sessieActie(body)); });
-    return sendJSON(res, { naam: sessie.naam, lijst: sessieLijst(), laadVersie: laadVersie });
+    if (req.method === 'POST') {
+      return readBody(req, function (body) {
+        var g = opslag.sessieActie(body, state.bpm);
+        if (g.tempo) zetTempo(g.tempo);
+        sendJSON(res, g.antwoord);
+      });
+    }
+    return sendJSON(res, opslag.sessieOverzicht());
+  }
+
+  if (url === '/api/klanken') {
+    if (req.method === 'POST') {
+      return readBody(req, function (body) {
+        var rol = String(body.rol || '');
+        if (body.actie === 'bewaar') opslag.klankBewaar(rol, body.naam, body.klank);
+        if (body.actie === 'wis') opslag.klankWis(rol, body.naam);
+        sendJSON(res, { lijst: opslag.klankLijst(rol) });
+      });
+    }
+    if (vraag.naam) return sendJSON(res, { klank: opslag.klankLees(vraag.rol, vraag.naam) });
+    return sendJSON(res, { lijst: opslag.klankLijst(vraag.rol) });
+  }
+
+  if (url === '/api/export') {
+    var ex = opslag.exporteer(vraag.soort, vraag.plek, state.bpm);
+    if (!ex) return send(res, 404, 'text/plain', 'niets om te exporteren');
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="' + ex.bestandsnaam + '"',
+      'Cache-Control': 'no-store'
+    });
+    return res.end(ex.inhoud);
+  }
+
+  if (url === '/api/import' && req.method === 'POST') {
+    return readBody(req, function (body) {
+      var uit = opslag.importeer(body.bestand, String(body.plek || ''));
+      if (uit.tempo) zetTempo(uit.tempo);
+      sendJSON(res, uit);
+    });
   }
 
   if (url === '/api/info') {
@@ -274,6 +293,8 @@ var server = http.createServer(function (req, res) {
           id: id,
           name: String(body.name || 'speler').slice(0, 30),
           role: String(body.role || '').slice(0, 20),
+          plek: String(body.plek || '').slice(0, 20),
+          plekNaam: String(body.plekNaam || '').slice(0, 40),
           latency: Number(body.latency) || 0,
           rtt: Math.round((Number(body.rtt) || 0) * 10) / 10,
           seen: now()
