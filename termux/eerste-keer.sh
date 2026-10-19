@@ -27,8 +27,10 @@ cp ~/himmelsgristle/termux/Himmelsgristle-bijwerken.sh ~/.shortcuts/"Himmelsgris
 chmod +x ~/.shortcuts/*
 
 # Keuzemenu bij het openen van Termux (voor launchers zonder widgets)
-touch ~/.bashrc
-grep -q "himmelsgristle/termux/menu.sh" ~/.bashrc || echo '[ -f ~/himmelsgristle/termux/menu.sh ] && . ~/himmelsgristle/termux/menu.sh' >> ~/.bashrc
+for rc in ~/.bashrc ~/.profile; do
+  touch "$rc"
+  grep -q "himmelsgristle/termux/menu.sh" "$rc" || echo '[ -f ~/himmelsgristle/termux/menu.sh ] && . ~/himmelsgristle/termux/menu.sh' >> "$rc"
+done
 
 echo ""
 echo "  Klaar. Voortaan krijg je bij het openen van Termux een keuzemenu:"
