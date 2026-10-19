@@ -4,12 +4,13 @@ Een synthnetwerk van oude telefoons die samen in sync spelen. Eén telefoon is d
 
 Richting: industrial en electroclash. Koud, ritmisch, een beetje vuil.
 
-## Wat er nu in zit (versie 0.2)
+## Wat er nu in zit (versie 0.3)
 
 - Gedeelde klok tussen alle toestellen, met strak instappen op de maat en tempowissels op de volgende maat
-- **Drums:** vijf gesynthetiseerde stemmen (kick, snare, hihat, clap, metaal), elk met een eigen rij van 16 stappen, accent per stap en vijf knoppen per stem
+- **Drums:** vijf gesynthetiseerde stemmen (kick, snare, hihat, clap, metaal) in een matrix van 16 stappen, met accent per stap. Tik op de naam van een stem voor zijn knoppen, waaronder **Vuil** (overstuuring en bitcrush)
+- **Bas:** een monofone bas met resonant filter, glide en vuil, en een notenmatrix van een octaaf over 16 stappen
 - **Kliktest:** voor het afstellen van de compensatie per toestel
-- Op de Masterblaster: het spelersadres en een QR-code om aan te haken
+- Op de Masterblaster: het spelersadres en een QR-code, die vanzelf inklapt zodra er een speler aangehaakt is
 
 ## Masterblaster klaarzetten (eenmalig)
 

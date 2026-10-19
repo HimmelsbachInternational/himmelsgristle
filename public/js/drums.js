@@ -56,7 +56,7 @@
   var stemmen = [
     {
       id: 'kick', naam: 'KICK',
-      knoppen: [['toon', 'Toon', 0.35], ['val', 'Val', 0.5], ['decay', 'Decay', 0.35], ['klik', 'Klik', 0.3], ['vol', 'Volume', 0.9]],
+      knoppen: [['toon', 'Toon', 0.35], ['val', 'Val', 0.5], ['decay', 'Decay', 0.35], ['klik', 'Klik', 0.3], ['vuil', 'Vuil', 0.3], ['vol', 'Volume', 0.9]],
       speel: function (ctx, uit, t, a, p) {
         var f0 = 35 + p.toon * 90;
         var sweep = 0.025 + p.val * 0.12;
@@ -75,7 +75,7 @@
     },
     {
       id: 'snare', naam: 'SNARE',
-      knoppen: [['toon', 'Toon', 0.4], ['mix', 'Toon / ruis', 0.6], ['decay', 'Decay', 0.35], ['snap', 'Snap', 0.5], ['vol', 'Volume', 0.8]],
+      knoppen: [['toon', 'Toon', 0.4], ['mix', 'Toon / ruis', 0.6], ['decay', 'Decay', 0.35], ['snap', 'Snap', 0.5], ['vuil', 'Vuil', 0.25], ['vol', 'Volume', 0.8]],
       speel: function (ctx, uit, t, a, p) {
         var f = 120 + p.toon * 280;
         var dec = 0.06 + p.decay * 0.5;
@@ -91,7 +91,7 @@
     },
     {
       id: 'hat', naam: 'HIHAT',
-      knoppen: [['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.5], ['open', 'Open', 0], ['ruw', 'Ruw', 0.3], ['vol', 'Volume', 0.6]],
+      knoppen: [['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.5], ['open', 'Open', 0], ['ruw', 'Ruw', 0.3], ['vuil', 'Vuil', 0.15], ['vol', 'Volume', 0.6]],
       speel: function (ctx, uit, t, a, p) {
         var dec = (0.02 + p.decay * 0.15) * (1 + p.open * 6);
         var hp = filter(ctx, 'highpass', 4000 + p.kleur * 6000);
@@ -112,7 +112,7 @@
     },
     {
       id: 'clap', naam: 'CLAP',
-      knoppen: [['spreiding', 'Spreiding', 0.4], ['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.4], ['aantal', 'Klappen', 0.5], ['vol', 'Volume', 0.7]],
+      knoppen: [['spreiding', 'Spreiding', 0.4], ['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.4], ['aantal', 'Klappen', 0.5], ['vuil', 'Vuil', 0.3], ['vol', 'Volume', 0.7]],
       speel: function (ctx, uit, t, a, p) {
         var n = 2 + Math.round(p.aantal * 3);
         var gat = 0.006 + p.spreiding * 0.02;
@@ -135,7 +135,7 @@
     },
     {
       id: 'metaal', naam: 'METAAL',
-      knoppen: [['toon', 'Toon', 0.3], ['ring', 'Ringmod', 0.6], ['decay', 'Decay', 0.3], ['galm', 'Galm', 0.5], ['vol', 'Volume', 0.5]],
+      knoppen: [['toon', 'Toon', 0.3], ['ring', 'Ringmod', 0.6], ['decay', 'Decay', 0.3], ['galm', 'Galm', 0.5], ['vuil', 'Vuil', 0.35], ['vol', 'Volume', 0.5]],
       speel: function (ctx, uit, t, a, p) {
         var f = 150 + p.toon * 1200;
         var dec = 0.05 + p.decay * 1.2;
@@ -195,8 +195,9 @@
     },
     speel: function (id, t, accent, params) {
       var ctx = HG.audio.ctx;
+      var uit = HG.vuil(params.vuil, HG.audio.uit);
       for (var i = 0; i < stemmen.length; i++) {
-        if (stemmen[i].id === id) { stemmen[i].speel(ctx, HG.audio.uit, t, accent ? 1 : 0.6, params); return; }
+        if (stemmen[i].id === id) { stemmen[i].speel(ctx, uit, t, accent ? 1 : 0.6, params); return; }
       }
     }
   };

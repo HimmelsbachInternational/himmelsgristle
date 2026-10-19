@@ -56,27 +56,40 @@
   .tellen > div.aan { background: var(--tekst); border-color: var(--tekst); color: var(--zwart); }
   .tellen > div.een.aan { background: var(--sein); border-color: var(--sein); }
 
-  /* stemkeuze */
-  .stemmen button { font-size: 13px; letter-spacing: 1px; min-height: 46px; position: relative; }
-  .stemmen button.gekozen { background: var(--tekst); color: var(--zwart); border-color: var(--tekst); }
-  .stemmen button.flits { border-color: var(--sein); }
-  .stemmen button.stil { text-decoration: line-through; color: var(--stil); }
-
-  /* stappen */
-  .stappen { display: flex; margin: 0 -3px 6px; }
-  .stappen .stap {
-    flex: 1; margin: 0 3px; padding-bottom: 11%; position: relative;
-    background: var(--vlak); border: 1px solid var(--lijn); cursor: pointer;
+  /* matrix */
+  .matrix { margin: 0 0 6px; }
+  .mrij { display: flex; align-items: stretch; margin-bottom: 3px; }
+  .mnaam {
+    flex: none; width: 64px; margin-right: 2px; min-height: 0; font-size: 11px; letter-spacing: 0;
+    padding: 0 2px; text-align: left; overflow: hidden; white-space: nowrap;
   }
-  .stappen .stap.tel { background: var(--vlak2); }
-  .stappen .stap.aan { background: var(--tekst); border-color: var(--tekst); }
-  .stappen .stap.accent { background: var(--sein); border-color: var(--sein); }
-  .stappen .stap.nu { box-shadow: inset 0 0 0 3px var(--sein); }
-  .stappen .stap.aan.nu, .stappen .stap.accent.nu { box-shadow: inset 0 0 0 3px var(--zwart); }
+  .mnaam.open { background: var(--tekst); color: var(--zwart); border-color: var(--tekst); }
+  .mnaam.stil { text-decoration: line-through; color: var(--stil); }
+  .mnaam.flits { border-color: var(--sein); }
+  .mnaam.grond { color: var(--sein); }
+  .mcel { flex: 1; margin-left: 2px; height: 42px; background: var(--vlak); border: 1px solid var(--lijn); cursor: pointer; min-width: 0; }
+  .mcel.vier { margin-left: 6px; }
+  .mcel.tel { background: var(--vlak2); }
+  .mcel.aan { background: var(--tekst); border-color: var(--tekst); }
+  .mcel.accent { background: var(--sein); border-color: var(--sein); }
+  .matrix.noten .mcel { height: 28px; }
+  .matrix.noten .mnaam { font-size: 12px; text-align: center; background: transparent; border-color: transparent; }
+  .matrix.noten .mrij.grondrij .mcel { border-color: #3d3a35; }
+  .matrix .loper .mcel, .matrix.noten .loper .mcel { height: 6px; cursor: default; background: transparent; border-color: transparent; }
+  .matrix .loper .mcel.nu, .matrix.noten .loper .mcel.nu { background: var(--sein); border-color: var(--sein); }
+  .loper .mnaam { height: 6px; border: 0; background: transparent; padding: 0; }
+
+  /* klankpaneel */
+  .paneel { border: 1px solid var(--lijn); padding: 10px; margin: 6px 0 4px; }
+  .paneel .pkop { display: flex; align-items: center; margin: 0 -3px 6px; }
+  .paneel .pkop > * { margin: 0 3px; }
+  .paneel .ptitel { flex: 1; font-weight: bold; letter-spacing: 3px; font-size: 15px; }
+  .paneel .pkop button { flex: none; min-height: 40px; font-size: 13px; padding: 0 12px; }
+  .paneel .pkop button.aan { background: var(--sein); color: var(--zwart); border-color: var(--sein); }
   .uitleg { color: var(--stil); font-size: 11px; line-height: 1.5; margin: 4px 0 0; }
 
   /* schuiven */
-  .knoppen .schuif { margin-bottom: 4px; }
+  .knoppen .schuif { margin-bottom: 2px; }
   .knoppen .schuif label { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 1px; color: var(--stil); text-transform: uppercase; }
   input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 38px; background: transparent; margin: 0; }
   input[type=range]::-webkit-slider-runnable-track { height: 4px; background: var(--lijn); }
@@ -98,7 +111,9 @@
 
   /* Masterblaster */
   .master { border: 1px solid var(--sein); padding: 12px; margin-bottom: 14px; }
-  .master .titel { color: var(--sein); font-size: 12px; letter-spacing: 3px; font-weight: bold; margin-bottom: 10px; }
+  .master .titel { color: var(--sein); font-size: 12px; letter-spacing: 3px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; }
+  .master .inhoud { margin-top: 10px; }
+  .master.dicht { padding: 10px 12px; }
   .master .samen { display: flex; align-items: center; }
   .master .qr { background: #fff; padding: 6px; flex: none; margin-right: 12px; line-height: 0; }
   .master .qr img { display: block; width: 132px; height: 132px; image-rendering: pixelated; }
@@ -125,23 +140,26 @@
   <h1>HIMMELS<br>GRISTLE</h1>
   <p>Kies wat dit toestel wordt.</p>
   <button class="groot sein" id="kiesDrums">DRUMS</button>
+  <button class="groot sein" id="kiesBas">BAS</button>
   <button class="groot" id="kiesKlik">KLIKTEST</button>
-  <button class="uit" id="kiesLater">BAS &middot; LEAD &middot; PAD<br><small>komt nog</small></button>
+  <button class="uit" id="kiesLater">LEAD &middot; PAD<br><small>komt nog</small></button>
   <p id="poortinfo"></p>
 </div>
 
 <!-- Alleen op de Masterblaster zelf: zo haken de andere telefoons aan -->
 <div class="master verborgen" id="master">
-  <div class="titel">MASTERBLASTER &middot; SPELERS AANHAKEN</div>
-  <div class="samen">
-    <div class="qr" id="qr"></div>
-    <div>
-      <div class="adres" id="adres">adres zoeken...</div>
-      <div class="klein" id="adresUitleg">Andere telefoon op de hotspot, mobiele data uit, en dit adres openen of de code scannen.</div>
+  <div class="titel" id="masterKop"><span>MASTERBLASTER &middot; AANHAKEN</span><span id="masterTeller"></span></div>
+  <div class="inhoud" id="masterInhoud">
+    <div class="samen">
+      <div class="qr" id="qr"></div>
+      <div>
+        <div class="adres" id="adres">adres zoeken...</div>
+        <div class="klein" id="adresUitleg">Andere telefoon op de hotspot, mobiele data uit, en dit adres openen of de code scannen.</div>
+      </div>
     </div>
+    <div class="klein" id="andereAdressen"></div>
+    <div class="spelers" id="spelers"></div>
   </div>
-  <div class="klein" id="andereAdressen"></div>
-  <div class="spelers" id="spelers"></div>
 </div>
 
 <div class="kop">
@@ -162,11 +180,40 @@
 
 <!-- Drums -->
 <div id="drumsDeel" class="verborgen">
-  <div class="rij stemmen" id="stemKeuze"></div>
-  <div class="stappen" id="stappenA"></div>
-  <div class="stappen" id="stappenB"></div>
-  <p class="uitleg">Tik: aan. Nog eens: accent. Nog eens: uit. Dubbeltik op een stemnaam: stil.</p>
-  <div class="knoppen" id="knoppen"></div>
+  <div class="matrix" id="drumMatrix"></div>
+  <p class="uitleg">Tik op een vakje: aan, accent, uit. Tik op een naam voor de klank van die stem.</p>
+  <div class="paneel verborgen" id="drumPaneel">
+    <div class="pkop">
+      <span class="ptitel" id="drumTitel"></span>
+      <button id="drumStil">STIL</button>
+      <button id="drumDicht">X</button>
+    </div>
+    <div class="knoppen" id="drumKnoppen"></div>
+  </div>
+</div>
+
+<!-- Bas -->
+<div id="basDeel" class="verborgen">
+  <div class="matrix noten" id="basMatrix"></div>
+  <p class="uitleg">Een noot per stap. Nog eens tikken: accent. Nog eens: uit.</p>
+  <div class="rij">
+    <button id="basKlankKnop">KLANK</button>
+  </div>
+  <div class="paneel verborgen" id="basPaneel">
+    <div class="pkop">
+      <span class="ptitel">BAS</span>
+      <button id="basDicht">X</button>
+    </div>
+    <div class="label" style="margin-top:4px">grondtoon</div>
+    <div class="rij">
+      <button id="basOctMin">OCT -</button>
+      <button id="basMin">-</button>
+      <div class="waarde" id="basGrond">C2</div>
+      <button id="basPlus">+</button>
+      <button id="basOctPlus">OCT +</button>
+    </div>
+    <div class="knoppen" id="basKnoppen"></div>
+  </div>
 </div>
 
 <div class="rij" style="margin-top:14px">
@@ -210,7 +257,9 @@
 <script src="vendor/qrcode.js"></script>
 <script src="js/basis.js"></script>
 <script src="js/klok.js"></script>
+<script src="js/klank.js"></script>
 <script src="js/drums.js"></script>
+<script src="js/bas.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

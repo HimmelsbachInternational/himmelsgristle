@@ -4,7 +4,7 @@
   'use strict';
 
   var $ = HG.$;
-  var VERSIE = '0.2';
+  var VERSIE = '0.3';
   var isMaster = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 
   // ---------- opgeslagen voorkeuren ----------
@@ -18,7 +18,11 @@
   var patroon = HG.haal('patroon', true) || HG.drums.standaardPatroon();
   var params = HG.haal('params', true) || HG.drums.standaardParams();
   var stil = HG.haal('stil', true) || {};
-  var gekozen = HG.haal('stem') || 'kick';
+  var openStem = null;
+
+  var basPatroon = HG.haal('basPatroon', true) || HG.bas.standaardPatroon();
+  var basParams = HG.haal('basParams', true) || HG.bas.standaardParams();
+  var basGrond = parseInt(HG.haal('basGrond'), 10) || HG.bas.standaardGrond;
 
   // Nieuwe knoppen uit latere versies aanvullen in oude opgeslagen instellingen.
   (function () {
@@ -28,13 +32,17 @@
       for (var k in std[id]) if (params[id][k] === undefined) params[id][k] = std[id][k];
       if (!patroon[id] || patroon[id].length !== 16) patroon[id] = stdP[id];
     }
+    var stdB = HG.bas.standaardParams();
+    for (var b in stdB) if (basParams[b] === undefined) basParams[b] = stdB[b];
+    if (!basPatroon || basPatroon.length !== 16) basPatroon = HG.bas.standaardPatroon();
   })();
 
   var bewaarTimer = null;
-  function bewaarDrums() {
+  function bewaarAlles() {
     clearTimeout(bewaarTimer);
     bewaarTimer = setTimeout(function () {
-      HG.bewaar('patroon', patroon); HG.bewaar('params', params); HG.bewaar('stil', stil); HG.bewaar('stem', gekozen);
+      HG.bewaar('patroon', patroon); HG.bewaar('params', params); HG.bewaar('stil', stil);
+      HG.bewaar('basPatroon', basPatroon); HG.bewaar('basParams', basParams); HG.bewaar('basGrond', String(basGrond));
     }, 300);
   }
 
@@ -67,14 +75,18 @@
         var id = stemmen[i].id, v = patroon[id][stap];
         if (v && !stil[id]) {
           HG.drums.speel(id, wanneer, v === 2, params[id]);
-          flitsStem(id, wanneer);
+          flitsNaam(id, wanneer);
         }
       }
-      HG.audio.opHetGeluid(wanneer, function () { toonStap(stap); });
     }
+    if (rol === 'bas') {
+      var bpm = HG.klok.st ? HG.klok.st.bpm : 120;
+      HG.bas.speel(stap, wanneer, basPatroon, basGrond, basParams, 15 / bpm);
+    }
+    HG.audio.opHetGeluid(wanneer, function () { toonLoper(stap); });
   };
 
-  // ---------- tellen en stappen in beeld, gelijk met het geluid ----------
+  // ---------- tellen en loper in beeld, gelijk met het geluid ----------
 
   var telTimer = null;
   function toonTel(pos) {
@@ -83,91 +95,55 @@
     telTimer = setTimeout(function () { for (var j = 0; j < 4; j++) HG.klasse($('t' + j), 'aan', false); }, 110);
   }
 
-  var stapEls = [];
+  var lopers = []; // per matrix een rij loper-vakjes
   var nuStap = -1;
-  function toonStap(stap) {
-    if (nuStap >= 0 && stapEls[nuStap]) HG.klasse(stapEls[nuStap], 'nu', false);
+  function toonLoper(stap) {
+    for (var m = 0; m < lopers.length; m++) {
+      if (nuStap >= 0) HG.klasse(lopers[m][nuStap], 'nu', false);
+      if (stap >= 0) HG.klasse(lopers[m][stap], 'nu', true);
+    }
     nuStap = stap;
-    if (stapEls[stap]) HG.klasse(stapEls[stap], 'nu', true);
   }
 
-  var stemKnoppen = {};
-  function flitsStem(id, wanneer) {
+  var naamKnoppen = {};
+  function flitsNaam(id, wanneer) {
     HG.audio.opHetGeluid(wanneer, function () {
-      var el = stemKnoppen[id]; if (!el) return;
+      var el = naamKnoppen[id]; if (!el) return;
       HG.klasse(el, 'flits', true);
       setTimeout(function () { HG.klasse(el, 'flits', false); }, 90);
     });
   }
 
-  // ---------- drums op het scherm ----------
+  // ---------- een matrix: rijen naast elkaar, 16 stappen breed ----------
 
-  function bouwDrums() {
-    var keuze = $('stemKeuze');
-    keuze.innerHTML = '';
-    var stemmen = HG.drums.stemmen;
-    for (var i = 0; i < stemmen.length; i++) {
-      (function (s) {
-        var b = document.createElement('button');
-        b.innerHTML = s.naam;
-        keuze.appendChild(b);
-        stemKnoppen[s.id] = b;
-        var laatste = 0;
-        HG.knop(b, function () {
-          var t = HG.nu();
-          if (t - laatste < 350 && gekozen === s.id) {
-            stil[s.id] = !stil[s.id];
-            laatste = 0;
-          } else {
-            laatste = t;
-          }
-          gekozen = s.id;
-          bewaarDrums();
-          tekenDrums();
-        });
-      })(stemmen[i]);
-    }
-
-    stapEls = [];
-    var rijen = [$('stappenA'), $('stappenB')];
-    rijen[0].innerHTML = ''; rijen[1].innerHTML = '';
+  function cellenRij(houder, naamEl, klasse) {
+    var rij = document.createElement('div');
+    rij.className = 'mrij' + (klasse ? ' ' + klasse : '');
+    rij.appendChild(naamEl);
+    var cellen = [];
     for (var n = 0; n < 16; n++) {
-      (function (n) {
-        var d = document.createElement('div');
-        d.className = 'stap' + (n % 4 === 0 ? ' tel' : '');
-        rijen[n < 8 ? 0 : 1].appendChild(d);
-        stapEls.push(d);
-        HG.knop(d, function () {
-          var r = patroon[gekozen];
-          r[n] = (r[n] + 1) % 3;
-          bewaarDrums();
-          tekenStappen();
-        });
-      })(n);
+      var c = document.createElement('div');
+      c.className = 'mcel' + (n % 4 === 0 ? ' tel' : '') + (n > 0 && n % 4 === 0 ? ' vier' : '');
+      rij.appendChild(c);
+      cellen.push(c);
     }
-    tekenDrums();
+    houder.appendChild(rij);
+    return cellen;
   }
 
-  function tekenStappen() {
-    var r = patroon[gekozen];
-    for (var n = 0; n < 16; n++) {
-      HG.klasse(stapEls[n], 'aan', r[n] === 1);
-      HG.klasse(stapEls[n], 'accent', r[n] === 2);
-    }
+  function loperRij(houder) {
+    var leeg = document.createElement('div');
+    leeg.className = 'mnaam';
+    var r = cellenRij(houder, leeg, 'loper');
+    for (var i = 0; i < r.length; i++) r[i].className = r[i].className.replace(' tel', '');
+    lopers.push(r);
   }
 
-  function tekenDrums() {
-    var stemmen = HG.drums.stemmen, s = null;
-    for (var i = 0; i < stemmen.length; i++) {
-      HG.klasse(stemKnoppen[stemmen[i].id], 'gekozen', stemmen[i].id === gekozen);
-      HG.klasse(stemKnoppen[stemmen[i].id], 'stil', !!stil[stemmen[i].id]);
-      if (stemmen[i].id === gekozen) s = stemmen[i];
-    }
-    tekenStappen();
+  // ---------- klankschuiven ----------
 
-    var vak = $('knoppen');
+  function bouwSchuiven(vak, knoppen, waarden, bijWijziging) {
     vak.innerHTML = '';
-    for (var k = 0; k < s.knoppen.length; k++) {
+    for (var k = 0; k < knoppen.length; k++) {
       (function (kn) {
         var sleutel = kn[0];
         var w = document.createElement('div');
@@ -176,21 +152,158 @@
           '<input type="range" min="0" max="100" step="1">';
         var inp = w.getElementsByTagName('input')[0];
         var getal = w.getElementsByTagName('span')[1];
-        inp.value = Math.round(params[gekozen][sleutel] * 100);
+        inp.value = Math.round(waarden[sleutel] * 100);
         getal.innerHTML = inp.value;
         function bij() {
-          params[gekozen][sleutel] = inp.value / 100;
+          waarden[sleutel] = inp.value / 100;
           getal.innerHTML = inp.value;
-          bewaarDrums();
+          if (bijWijziging) bijWijziging();
+          bewaarAlles();
         }
         inp.addEventListener('input', bij, false);
         inp.addEventListener('change', bij, false);
         vak.appendChild(w);
-      })(s.knoppen[k]);
+      })(knoppen[k]);
     }
   }
 
+  // ---------- drums ----------
+
+  var drumCellen = {};
+
+  function bouwDrums() {
+    var m = $('drumMatrix');
+    m.innerHTML = '';
+    loperRij(m);
+    var stemmen = HG.drums.stemmen;
+    for (var i = 0; i < stemmen.length; i++) {
+      (function (s) {
+        var b = document.createElement('button');
+        b.className = 'mnaam';
+        b.innerHTML = s.naam;
+        naamKnoppen[s.id] = b;
+        HG.knop(b, function () {
+          openStem = openStem === s.id ? null : s.id;
+          tekenDrumPaneel();
+        });
+        var cellen = cellenRij(m, b);
+        drumCellen[s.id] = cellen;
+        for (var n = 0; n < 16; n++) {
+          (function (n) {
+            HG.knop(cellen[n], function () {
+              var r = patroon[s.id];
+              r[n] = (r[n] + 1) % 3;
+              bewaarAlles();
+              tekenDrumRij(s.id);
+            });
+          })(n);
+        }
+        tekenDrumRij(s.id);
+      })(stemmen[i]);
+    }
+    HG.knop('drumStil', function () {
+      if (!openStem) return;
+      stil[openStem] = !stil[openStem];
+      bewaarAlles();
+      tekenDrumPaneel();
+    });
+    HG.knop('drumDicht', function () { openStem = null; tekenDrumPaneel(); });
+    tekenDrumPaneel();
+  }
+
+  function tekenDrumRij(id) {
+    var r = patroon[id], c = drumCellen[id];
+    for (var n = 0; n < 16; n++) {
+      HG.klasse(c[n], 'aan', r[n] === 1);
+      HG.klasse(c[n], 'accent', r[n] === 2);
+    }
+  }
+
+  function tekenDrumPaneel() {
+    var stemmen = HG.drums.stemmen, s = null;
+    for (var i = 0; i < stemmen.length; i++) {
+      var id = stemmen[i].id;
+      HG.klasse(naamKnoppen[id], 'open', id === openStem);
+      HG.klasse(naamKnoppen[id], 'stil', !!stil[id]);
+      if (id === openStem) s = stemmen[i];
+    }
+    HG.klasse($('drumPaneel'), 'verborgen', !s);
+    if (!s) return;
+    $('drumTitel').innerHTML = s.naam;
+    $('drumStil').innerHTML = stil[s.id] ? 'STIL' : 'AAN';
+    HG.klasse($('drumStil'), 'aan', !!stil[s.id]);
+    bouwSchuiven($('drumKnoppen'), s.knoppen, params[s.id]);
+  }
+
+  // ---------- bas ----------
+
+  var basCellen = []; // [rij][stap], rij 0 = bovenste (hoogste) noot
+  var basNamen = [];
+
+  function bouwBas() {
+    var m = $('basMatrix');
+    m.innerHTML = '';
+    loperRij(m);
+    basCellen = []; basNamen = [];
+    for (var r = 0; r < HG.bas.rijen; r++) {
+      (function (r) {
+        var toon = HG.bas.rijen - 1 - r; // halve tonen boven de grondtoon
+        var naam = document.createElement('button');
+        naam.className = 'mnaam' + (toon % 12 === 0 ? ' grond' : '');
+        basNamen.push(naam);
+        var cellen = cellenRij(m, naam, toon % 12 === 0 ? 'grondrij' : '');
+        basCellen.push(cellen);
+        for (var n = 0; n < 16; n++) {
+          (function (n) {
+            HG.knop(cellen[n], function () {
+              var v = basPatroon[n], hier = v >= 0 && v % 100 === toon;
+              if (!hier) basPatroon[n] = toon;
+              else if (v < 100) basPatroon[n] = toon + 100;
+              else basPatroon[n] = -1;
+              bewaarAlles();
+              tekenBas();
+            });
+          })(n);
+        }
+      })(r);
+    }
+    function grond(d) {
+      basGrond = Math.max(24, Math.min(60, basGrond + d));
+      bewaarAlles();
+      tekenBas();
+    }
+    HG.knop('basMin', function () { grond(-1); });
+    HG.knop('basPlus', function () { grond(1); });
+    HG.knop('basOctMin', function () { grond(-12); });
+    HG.knop('basOctPlus', function () { grond(12); });
+    HG.knop('basKlankKnop', function () { HG.klasse($('basPaneel'), 'verborgen', $('basPaneel').className.indexOf('verborgen') < 0); });
+    HG.knop('basDicht', function () { HG.klasse($('basPaneel'), 'verborgen', true); });
+    bouwSchuiven($('basKnoppen'), HG.bas.knoppen, basParams);
+    tekenBas();
+  }
+
+  function tekenBas() {
+    for (var r = 0; r < basCellen.length; r++) {
+      var toon = HG.bas.rijen - 1 - r;
+      basNamen[r].innerHTML = HG.notenNaam(basGrond + toon).replace(/-?\d+$/, '');
+      for (var n = 0; n < 16; n++) {
+        var v = basPatroon[n], hier = v >= 0 && v % 100 === toon;
+        HG.klasse(basCellen[r][n], 'aan', hier && v < 100);
+        HG.klasse(basCellen[r][n], 'accent', hier && v >= 100);
+      }
+    }
+    $('basGrond').innerHTML = HG.notenNaam(basGrond);
+  }
+
   // ---------- Masterblaster: adres en QR-code ----------
+
+  var masterDicht = false, masterAutoDicht = false;
+
+  function tekenMaster() {
+    HG.klasse($('masterInhoud'), 'verborgen', masterDicht);
+    HG.klasse($('master'), 'dicht', masterDicht);
+  }
+  HG.knop('masterKop', function () { masterDicht = !masterDicht; masterAutoDicht = true; tekenMaster(); });
 
   var laatsteAdres = null;
   function haalInfo() {
@@ -225,13 +338,17 @@
 
   function toonSpelers(s) {
     if (!isMaster || !s || !s.players) return;
-    var regels = [];
+    var regels = [], anderen = 0;
     for (var i = 0; i < s.players.length; i++) {
       var p = s.players[i];
+      if (p.id !== mijnId) anderen++;
       regels.push('<b>' + HG.escape(p.name) + '</b> ' + HG.escape(p.role || '') +
         (p.id === mijnId ? ' (dit toestel)' : ' &middot; ' + p.rtt + ' ms'));
     }
     $('spelers').innerHTML = 'Aangehaakt (' + regels.length + '):<br>' + regels.join('<br>');
+    $('masterTeller').innerHTML = s.players.length + (masterDicht ? ' &#9662;' : ' &#9652;');
+    // Zodra er een andere speler binnen is, klapt het paneel vanzelf in (eenmalig).
+    if (anderen > 0 && !masterAutoDicht) { masterAutoDicht = true; masterDicht = true; tekenMaster(); }
   }
 
   // ---------- status ----------
@@ -247,12 +364,15 @@
     $('status').innerHTML = regels.join('<br>');
   }
 
-  HG.klok.opToestand(function (s) {
+  HG.klok.opToestand(function (s, oud) {
     $('bpm').innerHTML = s.bpm;
     $('startstop').innerHTML = s.running ? 'STOP' : 'START';
     toonStatus(s);
     toonSpelers(s);
-    if (!s.running) toonStap(-1);
+    if (!s.running) {
+      toonLoper(-1);
+      if (oud && oud.running && rol === 'bas') HG.bas.stop();
+    }
   });
 
   // ---------- melden bij de Masterblaster ----------
@@ -316,7 +436,8 @@
 
   // ---------- rol kiezen en aanhaken ----------
 
-  var gestart = false;
+  var gestart = false, gebouwd = {};
+  var rolNamen = { drums: 'drums', bas: 'bas', klik: 'kliktest' };
 
   function kies(nieuweRol) {
     if (!HG.audio.ctx && !HG.audio.maak()) {
@@ -324,13 +445,16 @@
       return;
     }
     if (HG.audio.ctx.resume) HG.audio.ctx.resume();
+    if (rol === 'bas' && nieuweRol !== 'bas') HG.bas.stop();
     rol = nieuweRol;
     HG.bewaar('rol', rol);
     HG.klasse($('poort'), 'verborgen', true);
-    $('rolNaam').innerHTML = rol === 'drums' ? 'drums' : 'kliktest';
+    $('rolNaam').innerHTML = rolNamen[rol];
     HG.klasse($('drumsDeel'), 'verborgen', rol !== 'drums');
+    HG.klasse($('basDeel'), 'verborgen', rol !== 'bas');
     HG.klasse($('tellen'), 'groot', rol === 'klik');
-    if (rol === 'drums' && !stapEls.length) bouwDrums();
+    if (rol === 'drums' && !gebouwd.drums) { bouwDrums(); gebouwd.drums = true; }
+    if (rol === 'bas' && !gebouwd.bas) { bouwBas(); gebouwd.bas = true; }
     houdWakker();
     meld();
 
@@ -344,13 +468,15 @@
     setInterval(meld, 2000);
     if (isMaster) {
       HG.klasse($('master'), 'verborgen', false);
+      tekenMaster();
       haalInfo();
       setInterval(haalInfo, 3000);
     }
   }
 
   HG.knop('kiesDrums', function () { kies('drums'); });
+  HG.knop('kiesBas', function () { kies('bas'); });
   HG.knop('kiesKlik', function () { kies('klik'); });
-  HG.knop('kiesLater', function () { $('poortinfo').innerHTML = 'Bas, lead en pad komen in een volgende versie.'; });
+  HG.knop('kiesLater', function () { $('poortinfo').innerHTML = 'Lead en pad komen in een volgende versie.'; });
 
 })(window.HG);
