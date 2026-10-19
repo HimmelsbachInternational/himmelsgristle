@@ -186,7 +186,7 @@
       if (wanneer > grens) break;
       if (wanneer > ctx.currentTime && planner.opStap) {
         var stap = ((planner.volgende % 16) + 16) % 16;
-        planner.opStap(stap, wanneer);
+        planner.opStap(stap, wanneer, planner.volgende);
       }
       planner.laatsteServer = sTijd;
       planner.volgende++;

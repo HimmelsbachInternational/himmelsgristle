@@ -4,14 +4,17 @@ A modular synth network of old phones playing in sync. Industrial, electroclash,
 
 One phone is the **Masterblaster**: it runs a hotspot, a tiny server and the clock. Other phones, tablets or laptops just open a web page and play along. No internet, no app store, no account.
 
-## What's in it (version 0.6)
+## What's in it (version 0.7)
 
 - A shared clock across all devices: late joiners fall in on the beat, tempo changes land on the next bar, plus shared **swing**
 - **Drums:** five synthesized voices (kick, snare, hihat, clap, metal) in a 16-step matrix with accents. Tap a voice name for its knobs, including **Filth** (overdrive and bitcrush)
 - **Bass:** a mono bass with resonant filter, glide and filth, and a one-octave note matrix over 16 steps
 - **Lead:** two detuned oscillators with vibrato, filter, glide and filth
+- **Pad:** polyphonic chords with slow attack and release, detune and a filter that breathes; cells next to each other become one long note
 - **Arpeggiator** on bass and lead: up, down, up/down or random, over an octave, fifth, minor, major, diminished, sus or minor 7 chord, across 1 to 3 octaves, in 1/16 or 1/32
 - **Patterns A to D** per device; switching while playing lands on the next bar
+- **Song mode:** chain patterns (A A B A C), one bar each, and every device switches together. Or send all devices to one pattern at once
+- **Polymeter:** every drum voice and every instrument can have its own pattern length, from 1 to 16 steps
 - **Slots:** every instrument gets its own slot in the session (BASS 1, BASS 2, DRUMS 1...) with its own sound and patterns, and a name you choose. A device that comes back gets its slot back (*Persistence is all*)
 - **Saving and sharing:** sessions saved and loaded on the Masterblaster, a sound library per role, and export and import of sounds, instruments and whole sessions as files
 - **Click test** for setting the latency offset per device
@@ -49,7 +52,7 @@ Under SETTINGS, SHARE you can export and import three kinds of file:
 | --- | --- |
 | Sound | the knob positions of one instrument |
 | Instrument | sound plus patterns A to D and the arpeggiator |
-| Session | all slots, with tempo and swing |
+| Session | all slots, with tempo, swing and song |
 
 They are plain JSON files with a header like `{ "himmelsgristle": 1, "soort": "klank", "rol": "bas", ... }`. Import works out the kind by itself.
 

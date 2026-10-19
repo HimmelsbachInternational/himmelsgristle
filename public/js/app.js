@@ -4,7 +4,7 @@
   'use strict';
 
   var $ = HG.$;
-  var VERSIE = '0.6';
+  var VERSIE = '0.7';
   var isMaster = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 
   // ---------- toestel ----------
@@ -19,7 +19,10 @@
   // drums: { patronen: [4 x { kick: [16], ... }], params: { kick: {...} }, stil: {}, actief: 0 }
   // bas/lead: { patronen: [4 x [16]], params: {...}, grond: 36, actief: 0 }
 
-  var MONO = { bas: HG.bas, lead: HG.lead };
+  var MONO = { bas: HG.bas, lead: HG.lead };          // monofone motoren
+  var NOTEN = { bas: HG.bas, lead: HG.lead, pad: HG.pad }; // alles met een notenmatrix
+
+  function mod(a, n) { return ((a % n) + n) % n; }
 
   // ---------- arpeggiator ----------
   // Elke noot in de matrix wordt een loopje over een akkoord.
@@ -52,13 +55,13 @@
     return noten[Math.floor(Math.random() * L)];
   }
 
-  function speelMono(stap, wanneer, d, stapDuur) {
-    var m = MONO[rol], p = d.patronen[d.actief], v = p[stap], a = d.arp;
-    if (!a || !a.modus) { m.speel(stap, wanneer, p, d.grond, d.params, stapDuur); return; }
+  function speelMono(idx, wanneer, d, stapDuur) {
+    var m = MONO[rol], p = d.patronen[d.actief], v = p[idx], a = d.arp;
+    var volgendeAan = p[(idx + 1) % d.lengte] >= 0;
     if (v < 0) { m.rust(wanneer); arpTeller = 0; return; }
+    if (!a || !a.modus) { m.noot(wanneer, d.grond + v % 100, v >= 100, stapDuur, volgendeAan, d.params); return; }
     var noten = arpNoten(d.grond + v % 100, a);
     var subDuur = stapDuur / a.snel;
-    var volgendeAan = p[(stap + 1) % 16] >= 0;
     for (var sub = 0; sub < a.snel; sub++) {
       var laatste = sub === a.snel - 1;
       m.noot(wanneer + sub * subDuur, arpKies(noten, a.modus, arpTeller++), v >= 100 && sub === 0, subDuur, !laatste || volgendeAan, d.params);
@@ -73,12 +76,18 @@
   function standaard(r) {
     if (r === 'drums') {
       var p = HG.drums.standaardPatroon();
-      return { patronen: [p, kopie(p), kopie(p), kopie(p)], params: HG.drums.standaardParams(), stil: {}, actief: 0 };
+      var lengte = {};
+      for (var id in p) lengte[id] = 16;
+      return { patronen: [p, kopie(p), kopie(p), kopie(p)], params: HG.drums.standaardParams(), stil: {}, actief: 0, lengte: lengte };
+    }
+    if (r === 'pad') {
+      var rij = HG.pad.standaardPatroon();
+      return { patronen: [rij, kopie(rij), kopie(rij), kopie(rij)], params: HG.pad.standaardParams(), grond: HG.pad.standaardGrond, actief: 0, lengte: 16 };
     }
     var m = MONO[r];
     var q = m.standaardPatroon();
     return { patronen: [q, q.slice(), q.slice(), q.slice()], params: m.standaardParams(), grond: m.standaardGrond, actief: 0,
-      arp: { modus: 0, akkoord: 0, bereik: 1, snel: 1 } };
+      arp: { modus: 0, akkoord: 0, bereik: 1, snel: 1 }, lengte: 16 };
   }
 
   // Maakt data heel en veilig: ontbrekende stukken worden aangevuld en alle waarden worden
@@ -101,10 +110,11 @@
     var uit = { actief: Math.round(getal(d.actief, 0, 0, 3)) };
     var pat = (d.patronen && d.patronen.length === 4) ? d.patronen : s.patronen;
     if (r === 'drums') {
-      uit.params = {}; uit.stil = {}; uit.patronen = [];
+      uit.params = {}; uit.stil = {}; uit.patronen = []; uit.lengte = {};
       for (var id in s.params) {
         uit.params[id] = heleParams(s.params[id], d.params && d.params[id]);
         uit.stil[id] = !!(d.stil && d.stil[id]);
+        uit.lengte[id] = Math.round(getal(d.lengte && d.lengte[id], 16, 1, 16));
       }
       for (var i = 0; i < 4; i++) {
         var p = {};
@@ -115,9 +125,24 @@
         }
         uit.patronen.push(p);
       }
+    } else if (r === 'pad') {
+      uit.params = heleParams(s.params, d.params);
+      uit.grond = Math.round(getal(d.grond, s.grond, 24, 84));
+      uit.lengte = Math.round(getal(d.lengte, 16, 1, 16));
+      uit.patronen = [];
+      for (var pi = 0; pi < 4; pi++) {
+        var rijen = [];
+        for (var pr = 0; pr < 13; pr++) {
+          var bron = pat[pi] && pat[pi][pr], rij2 = [];
+          for (var pn = 0; pn < 16; pn++) rij2.push(bron && bron.length === 16 ? Math.round(getal(bron[pn], 0, 0, 2)) : 0);
+          rijen.push(rij2);
+        }
+        uit.patronen.push(rijen);
+      }
     } else {
       uit.params = heleParams(s.params, d.params);
       uit.grond = Math.round(getal(d.grond, s.grond, 24, 84));
+      uit.lengte = Math.round(getal(d.lengte, 16, 1, 16));
       var a = d.arp || {};
       uit.arp = {
         modus: Math.round(getal(a.modus, 0, 0, ARP_MODI.length - 1)),
@@ -232,15 +257,32 @@
 
   // ---------- wat er op elke zestiende gebeurt ----------
 
-  HG.planner.opStap = function (stap, wanneer) {
-    var d = data[rol];
+  var volgtSong = true;   // dit toestel volgt de songketen van de Masterblaster
+  var songPositie = -1;
 
-    // Patroonwissel op de eerste tel van de maat.
-    if (stap === 0 && volgend !== null && d) {
-      d.actief = volgend;
-      volgend = null;
-      bewaar();
-      HG.audio.opHetGeluid(wanneer, function () { tekenPatronen(); tekenRol(); });
+  HG.planner.opStap = function (stap, wanneer, absoluut) {
+    var d = data[rol];
+    var st = HG.klok.st;
+
+    if (stap === 0 && d) {
+      // Songmodus: de Masterblaster bepaalt welk patroon er deze maat speelt.
+      var song = st && st.song;
+      if (song && song.aan && song.keten.length && volgtSong) {
+        var maat = Math.floor(absoluut / 16);
+        if (maat >= song.startMaat) {
+          songPositie = mod(maat - song.startMaat, song.keten.length);
+          var nieuw = song.keten[songPositie];
+          volgend = null;
+          if (d.actief !== nieuw) d.actief = nieuw;
+          HG.audio.opHetGeluid(wanneer, function () { tekenPatronen(); tekenRol(); tekenSongStand(); });
+        }
+      } else if (volgend !== null) {
+        // Eigen patroonwissel op de eerste tel van de maat.
+        d.actief = volgend;
+        volgend = null;
+        bewaar();
+        HG.audio.opHetGeluid(wanneer, function () { tekenPatronen(); tekenRol(); });
+      }
     }
 
     if (stap % 4 === 0) {
@@ -249,21 +291,26 @@
       HG.audio.opHetGeluid(wanneer, function () { toonTel(tel); });
     }
 
+    var stapDuur = 15 / (st ? st.bpm : 120);
+
     if (rol === 'drums' && d) {
-      var p = d.patronen[d.actief], stemmen = HG.drums.stemmen;
+      var p = d.patronen[d.actief], stemmen = HG.drums.stemmen, posities = {};
       for (var i = 0; i < stemmen.length; i++) {
-        var id = stemmen[i].id, v = p[id][stap];
+        var id = stemmen[i].id, idx = mod(absoluut, d.lengte[id]), v = p[id][idx];
+        posities[id] = idx;
         if (v && !d.stil[id]) {
           HG.drums.speel(id, wanneer, v === 2, d.params[id]);
           flitsNaam(id, wanneer);
         }
       }
+      HG.audio.opHetGeluid(wanneer, function () { toonLoper('drums', stap); toonDrumPosities(posities); });
     }
-    if (MONO[rol] && d) {
-      var bpm = HG.klok.st ? HG.klok.st.bpm : 120;
-      speelMono(stap, wanneer, d, 15 / bpm);
+    if (NOTEN[rol] && d) {
+      var nIdx = mod(absoluut, d.lengte);
+      if (rol === 'pad') HG.pad.speel(nIdx, wanneer, d.patronen[d.actief], d.grond, d.params, stapDuur, d.lengte);
+      else speelMono(nIdx, wanneer, d, stapDuur);
+      HG.audio.opHetGeluid(wanneer, function () { toonLoper('noten', nIdx); });
     }
-    HG.audio.opHetGeluid(wanneer, function () { toonLoper(stap); });
   };
 
   // ---------- tellen en loper in beeld, gelijk met het geluid ----------
@@ -275,14 +322,25 @@
     telTimer = setTimeout(function () { for (var j = 0; j < 4; j++) HG.klasse($('t' + j), 'aan', false); }, 110);
   }
 
-  var lopers = [];
-  var nuStap = -1;
-  function toonLoper(stap) {
-    for (var m = 0; m < lopers.length; m++) {
-      if (nuStap >= 0) HG.klasse(lopers[m][nuStap], 'nu', false);
-      if (stap >= 0) HG.klasse(lopers[m][stap], 'nu', true);
+  var lopers = {}, nuStap = {};
+  function toonLoper(naam, stap) {
+    var l = lopers[naam]; if (!l) return;
+    if (nuStap[naam] >= 0) HG.klasse(l[nuStap[naam]], 'nu', false);
+    if (stap >= 0) HG.klasse(l[stap], 'nu', true);
+    nuStap[naam] = stap;
+  }
+  function stopLopers() {
+    toonLoper('drums', -1); toonLoper('noten', -1); toonDrumPosities(null);
+  }
+
+  // Bij polymetrie loopt elke drumstem op zijn eigen plek: een kader per rij.
+  var drumPos = {};
+  function toonDrumPosities(posities) {
+    for (var id in drumCellen) {
+      if (drumPos[id] >= 0) HG.klasse(drumCellen[id][drumPos[id]], 'speelt', false);
+      drumPos[id] = posities ? posities[id] : -1;
+      if (drumPos[id] >= 0) HG.klasse(drumCellen[id][drumPos[id]], 'speelt', true);
     }
-    nuStap = stap;
   }
 
   var naamKnoppen = {};
@@ -311,12 +369,13 @@
     return cellen;
   }
 
-  function loperRij(houder) {
+  function loperRij(houder, naam) {
     var leeg = document.createElement('div');
     leeg.className = 'mnaam';
     var r = cellenRij(houder, leeg, 'loper');
     for (var i = 0; i < r.length; i++) r[i].className = r[i].className.replace(' tel', '');
-    lopers.push(r);
+    lopers[naam] = r;
+    nuStap[naam] = -1;
   }
 
   // ---------- klankschuiven ----------
@@ -357,6 +416,10 @@
       for (var id in p) for (var n = 0; n < 16; n++) if (p[id][n]) return false;
       return true;
     }
+    if (rol === 'pad') {
+      for (var r = 0; r < p.length; r++) for (var k = 0; k < 16; k++) if (p[r][k]) return false;
+      return true;
+    }
     for (var m = 0; m < 16; m++) if (p[m] >= 0) return false;
     return true;
   }
@@ -376,6 +439,12 @@
       HG.knop(patKnoppen[i], function () {
         var d = data[rol]; if (!d) return;
         var loopt = HG.klok.st && HG.klok.st.running;
+        var song = HG.klok.st && HG.klok.st.song;
+        if (volgtSong && song && song.aan) {
+          volgtSong = false;
+          melding('LEFT THE SONG', 'this device plays its own patterns now');
+          tekenSongStand();
+        }
         if (!loopt) { d.actief = i; volgend = null; bewaar(); tekenRol(); }
         else volgend = (i === d.actief) ? null : i;
         tekenPatronen();
@@ -394,6 +463,7 @@
     wisZeker = false;
     var p = d.patronen[d.actief];
     if (rol === 'drums') { for (var id in p) for (var n = 0; n < 16; n++) p[id][n] = 0; }
+    else if (rol === 'pad') { for (var r = 0; r < p.length; r++) for (var k = 0; k < 16; k++) p[r][k] = 0; }
     else { for (var m = 0; m < 16; m++) p[m] = -1; }
     bewaar(); tekenRol(); tekenPatronen();
   });
@@ -406,7 +476,7 @@
   function bouwDrums() {
     var m = $('drumMatrix');
     m.innerHTML = '';
-    loperRij(m);
+    loperRij(m, 'drums');
     var stemmen = HG.drums.stemmen;
     for (var i = 0; i < stemmen.length; i++) {
       (function (s) {
@@ -440,13 +510,24 @@
       tekenDrumPaneel();
     });
     HG.knop('drumDicht', function () { openStem = null; tekenDrumPaneel(); });
+    function lengte(dlt) {
+      if (!openStem) return;
+      var l = data.drums.lengte;
+      l[openStem] = Math.max(1, Math.min(16, l[openStem] + dlt));
+      bewaar();
+      tekenDrumRij(openStem);
+      $('drumLengte').innerHTML = l[openStem];
+    }
+    HG.knop('drumLengteMin', function () { lengte(-1); });
+    HG.knop('drumLengtePlus', function () { lengte(1); });
   }
 
   function tekenDrumRij(id) {
-    var d = data.drums, r = d.patronen[d.actief][id], c = drumCellen[id];
+    var d = data.drums, r = d.patronen[d.actief][id], c = drumCellen[id], L = d.lengte[id];
     for (var n = 0; n < 16; n++) {
       HG.klasse(c[n], 'aan', r[n] === 1);
       HG.klasse(c[n], 'accent', r[n] === 2);
+      HG.klasse(c[n], 'buiten', n >= L);
     }
   }
 
@@ -469,6 +550,7 @@
     $('drumTitel').innerHTML = s.naam;
     $('drumStil').innerHTML = d.stil[s.id] ? 'MUTED' : 'ON';
     HG.klasse($('drumStil'), 'aan', !!d.stil[s.id]);
+    $('drumLengte').innerHTML = d.lengte[s.id];
     bouwSchuiven($('drumKnoppen'), s.knoppen, d.params[s.id]);
   }
 
@@ -479,7 +561,7 @@
   function bouwNoten() {
     var m = $('notenMatrix');
     m.innerHTML = '';
-    loperRij(m);
+    loperRij(m, 'noten');
     notenCellen = []; notenNamen = [];
     for (var r = 0; r < notenRijen; r++) {
       (function (r) {
@@ -493,10 +575,15 @@
           (function (n) {
             HG.knop(cellen[n], function () {
               var d = data[rol], p = d.patronen[d.actief];
-              var v = p[n], hier = v >= 0 && v % 100 === toon;
-              if (!hier) p[n] = toon;
-              else if (v < 100) p[n] = toon + 100;
-              else p[n] = -1;
+              if (rol === 'pad') {
+                // Pad: meerdere noten per stap, elk vakje los aan, accent, uit.
+                p[toon][n] = (p[toon][n] + 1) % 3;
+              } else {
+                var v = p[n], hier = v >= 0 && v % 100 === toon;
+                if (!hier) p[n] = toon;
+                else if (v < 100) p[n] = toon + 100;
+                else p[n] = -1;
+              }
               bewaar();
               tekenNoten();
               tekenPatronen();
@@ -526,6 +613,14 @@
     HG.knop('arpAkkoord', function () { arp('akkoord', ARP_AKKOORDEN.length - 1, 0); });
     HG.knop('arpBereik', function () { arp('bereik', 3, 1); });
     HG.knop('arpSnel', function () { arp('snel', 2, 1); });
+    function lengte(dlt) {
+      var d = data[rol];
+      d.lengte = Math.max(1, Math.min(16, d.lengte + dlt));
+      bewaar();
+      tekenNoten();
+    }
+    HG.knop('notenLengteMin', function () { lengte(-1); });
+    HG.knop('notenLengtePlus', function () { lengte(1); });
     HG.knop('notenKlankKnop', function () { HG.klasse($('notenPaneel'), 'verborgen', $('notenPaneel').className.indexOf('verborgen') < 0); });
     HG.knop('notenDicht', function () { HG.klasse($('notenPaneel'), 'verborgen', true); });
   }
@@ -545,12 +640,16 @@
       var toon = notenRijen - 1 - r;
       notenNamen[r].innerHTML = HG.notenNaam(d.grond + toon).replace(/-?\d+$/, '');
       for (var n = 0; n < 16; n++) {
-        var v = p[n], hier = v >= 0 && v % 100 === toon;
-        HG.klasse(notenCellen[r][n], 'aan', hier && v < 100);
-        HG.klasse(notenCellen[r][n], 'accent', hier && v >= 100);
+        var aan, acc;
+        if (rol === 'pad') { aan = p[toon][n] === 1; acc = p[toon][n] === 2; }
+        else { var v = p[n], hier = v >= 0 && v % 100 === toon; aan = hier && v < 100; acc = hier && v >= 100; }
+        HG.klasse(notenCellen[r][n], 'aan', aan);
+        HG.klasse(notenCellen[r][n], 'accent', acc);
+        HG.klasse(notenCellen[r][n], 'buiten', n >= d.lengte);
       }
     }
     $('notenGrond').innerHTML = HG.notenNaam(d.grond);
+    $('notenLengte').innerHTML = d.lengte;
   }
 
   // ---------- de rol in beeld ----------
@@ -558,11 +657,15 @@
   function tekenRol() {
     if (!data[rol]) return;
     if (rol === 'drums') tekenDrums();
-    if (MONO[rol]) {
+    if (NOTEN[rol]) {
       tekenNoten();
-      tekenArp();
-      $('notenTitel').innerHTML = rol === 'bas' ? 'BASS' : 'LEAD';
-      bouwSchuiven($('notenKnoppen'), MONO[rol].knoppen, data[rol].params);
+      if (MONO[rol]) tekenArp();
+      HG.klasse($('arpRij'), 'verborgen', !MONO[rol]);
+      $('notenTitel').innerHTML = { bas: 'BASS', lead: 'LEAD', pad: 'PAD' }[rol];
+      $('notenUitleg').innerHTML = rol === 'pad'
+        ? 'Several notes per step. Cells next to each other become one long note.'
+        : 'One note per step. Tap again: accent. Again: off. With the arp on, repeat a note over several steps to let it run.';
+      bouwSchuiven($('notenKnoppen'), NOTEN[rol].knoppen, data[rol].params);
     }
     tekenPatronen();
   }
@@ -617,6 +720,74 @@
     if (window.confirm('Start a new, empty session? What is playing now gets replaced on every device. Save first if you want to keep it.')) sessieActie({ actie: 'nieuw' });
   });
 
+  // ---------- songmodus ----------
+  // De keten staat op de Masterblaster; elk toestel rekent zelf uit waar het in de keten is.
+
+  var LETTERS = ['A', 'B', 'C', 'D'];
+
+  function huidigeSong() {
+    var s = HG.klok.st && HG.klok.st.song;
+    return s ? { aan: !!s.aan, keten: s.keten.slice() } : { aan: false, keten: [] };
+  }
+
+  function stuurSong(keten, aan, herstart) {
+    HG.klok.stuur({ action: 'song', keten: keten, aan: aan, herstart: !!herstart });
+  }
+
+  function tekenSongStand() {
+    var song = huidigeSong();
+    var el = $('songKeten');
+    if (!song.keten.length) {
+      el.innerHTML = 'no song yet';
+    } else {
+      var delen = [];
+      for (var i = 0; i < song.keten.length; i++) {
+        var nu = song.aan && volgtSong && i === songPositie && HG.klok.st && HG.klok.st.running;
+        delen.push(nu ? '<span class="nu">' + LETTERS[song.keten[i]] + '</span>' : LETTERS[song.keten[i]]);
+      }
+      el.innerHTML = delen.join(' ');
+    }
+    HG.klasse(el, 'uit', !song.aan);
+    $('songAan').innerHTML = song.aan ? 'STOP SONG' : 'PLAY SONG';
+    HG.klasse($('songAan'), 'aan', song.aan);
+    $('songVolg').innerHTML = volgtSong ? 'THIS DEVICE FOLLOWS THE SONG' : 'LET THIS DEVICE FOLLOW AGAIN';
+    HG.klasse($('songVolg'), 'aan', volgtSong);
+  }
+
+  for (var sl = 0; sl < 4; sl++) {
+    (function (i) {
+      HG.knop('song' + LETTERS[i], function () {
+        var song = huidigeSong();
+        if (song.keten.length >= 64) return;
+        song.keten.push(i);
+        stuurSong(song.keten, song.aan, false);
+      });
+      HG.knop('alle' + LETTERS[i], function () {
+        volgtSong = true;
+        stuurSong([i], true, true);
+        melding('ALL DEVICES TO ' + LETTERS[i], 'on the next bar');
+      });
+    })(sl);
+  }
+  HG.knop('songTerug', function () {
+    var song = huidigeSong();
+    song.keten.pop();
+    stuurSong(song.keten, song.aan && song.keten.length > 0, false);
+  });
+  HG.knop('songWis', function () { stuurSong([], false, false); });
+  HG.knop('songAan', function () {
+    var song = huidigeSong();
+    if (!song.keten.length) { melding('EMPTY SONG', 'add some letters first'); return; }
+    if (!song.aan) volgtSong = true;
+    stuurSong(song.keten, !song.aan, true);
+  });
+  HG.knop('songVolg', function () {
+    volgtSong = !volgtSong;
+    volgend = null;
+    tekenSongStand();
+    tekenPatronen();
+  });
+
   // ---------- plekken: wisselen, hernoemen, nieuw ----------
 
   function lijstRij(houder, tekst, klasse, actie, klein, kleinActie, uit) {
@@ -642,7 +813,7 @@
     if (!rol || rol === 'klik') return;
     var r = rol;
     stuurNu(function () {
-      if (MONO[r]) MONO[r].stop();
+      if (NOTEN[r]) NOTEN[r].stop();
       laadPlek(r, opties, function () { if (rol === r) { volgend = null; tekenRol(); haalPlekken(); } });
     });
   }
@@ -841,20 +1012,22 @@
     if (k.verbonden && k.rondreis > 30) regels.push('<span class="slecht">slow wifi, sync may wobble</span>');
     if (!navigator.wakeLock) regels.push('keep-awake not available: set a long screen timeout');
     if (s && s.sessieNaam) regels.push('session: <b>' + HG.escape(s.sessieNaam) + '</b>');
+    if (s && s.song && s.song.aan) regels.push(volgtSong ? 'song: <b>playing</b>' : 'song: playing, <b>this device left it</b>');
     if (s && s.players && !isMaster) regels.push('players: ' + s.players.length);
     $('status').innerHTML = regels.join('<br>');
   }
 
   HG.klok.opToestand(function (s, oud) {
     $('bpm').innerHTML = s.bpm;
+    if (!oud || JSON.stringify(oud.song) !== JSON.stringify(s.song)) tekenSongStand();
     $('swing').innerHTML = Math.round((s.swing || 0) * 100);
     $('startstop').innerHTML = s.running ? 'STOP' : 'START';
     toonStatus(s);
     toonSpelers(s);
     if (!s.running) {
-      toonLoper(-1);
+      stopLopers();
       if (volgend !== null && data[rol]) { data[rol].actief = volgend; volgend = null; bewaar(); tekenRol(); }
-      if (oud && oud.running && MONO[rol]) MONO[rol].stop();
+      if (oud && oud.running && NOTEN[rol]) NOTEN[rol].stop();
     }
     // Een andere sessie geladen of een nieuwe begonnen: klank en patronen opnieuw ophalen.
     if (bekendeLaadVersie !== null && s.laadVersie !== bekendeLaadVersie && rol && data[rol]) {
@@ -958,11 +1131,11 @@
   // ---------- rol kiezen en aanhaken ----------
 
   var gestart = false, gebouwd = {};
-  var rolNamen = { drums: 'drums', bas: 'bass', lead: 'lead', klik: 'click test' };
+  var rolNamen = { drums: 'drums', bas: 'bass', lead: 'lead', pad: 'pad', klik: 'click test' };
 
   function toonRolDelen() {
     HG.klasse($('drumsDeel'), 'verborgen', rol !== 'drums');
-    HG.klasse($('notenDeel'), 'verborgen', !MONO[rol]);
+    HG.klasse($('notenDeel'), 'verborgen', !NOTEN[rol]);
     HG.klasse($('patronen'), 'verborgen', rol === 'klik');
     HG.klasse($('tellen'), 'groot', rol === 'klik');
     $('rolNaam').innerHTML = rol === 'klik' ? 'click test' : HG.escape(plekNaam || rolNamen[rol]);
@@ -974,7 +1147,7 @@
       return;
     }
     if (HG.audio.ctx.resume) HG.audio.ctx.resume();
-    if (MONO[rol] && rol !== nieuweRol) MONO[rol].stop();
+    if (NOTEN[rol] && rol !== nieuweRol) NOTEN[rol].stop();
     if (rol !== nieuweRol) { plek = null; plekNaam = ''; }
     rol = nieuweRol;
     volgend = null;
@@ -985,7 +1158,7 @@
     var klaar = function () {
       if (rol !== nieuweRol) return;
       if (rol === 'drums' && !gebouwd.drums) { bouwDrums(); gebouwd.drums = true; }
-      if (MONO[rol] && !gebouwd.noten) { bouwNoten(); gebouwd.noten = true; }
+      if (NOTEN[rol] && !gebouwd.noten) { bouwNoten(); gebouwd.noten = true; }
       tekenRol();
     };
     if (rol === 'klik') klaar();
@@ -1014,6 +1187,6 @@
   HG.knop('kiesBas', function () { kies('bas'); });
   HG.knop('kiesLead', function () { kies('lead'); });
   HG.knop('kiesKlik', function () { kies('klik'); });
-  HG.knop('kiesLater', function () { $('poortinfo').innerHTML = 'The pad arrives in a later version.'; });
+  HG.knop('kiesPad', function () { kies('pad'); });
 
 })(window.HG);

@@ -8,7 +8,7 @@ var path = require('path');
 var os = require('os');
 var perf = require('perf_hooks').performance;
 
-var VERSIE = '0.6';
+var VERSIE = '0.7';
 var PORT = parseInt(process.env.PORT, 10) || 8080;
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -24,6 +24,7 @@ var state = {
   anchorBeat: 0,
   beatsPerBar: 4,
   swing: 0,
+  song: { aan: false, keten: [], startMaat: 0 },
   prev: null
 };
 
@@ -53,6 +54,7 @@ function applyChange(body) {
     state.anchorTime = t + LEAD;
     state.anchorBeat = 0;
     state.prev = null;
+    state.song.startMaat = 0;
   } else if (body.action === 'stop') {
     state.running = false;
   } else if (body.action === 'tempo') {
@@ -68,6 +70,23 @@ function applyChange(body) {
       state.anchorTime = nb.time;
     }
     state.bpm = bpm;
+  } else if (body.action === 'song') {
+    // Een keten van patronen (0 = A ... 3 = D), elke schakel duurt een maat.
+    var keten = [];
+    if (body.keten && body.keten.length) {
+      for (var k = 0; k < body.keten.length && k < 64; k++) {
+        var w = Math.round(Number(body.keten[k]));
+        if (w >= 0 && w <= 3) keten.push(w);
+      }
+    }
+    var wasAan = state.song.aan;
+    state.song.keten = keten;
+    state.song.aan = !!body.aan && keten.length > 0;
+    // Aanzetten (of opnieuw beginnen) gaat in op de eerstvolgende maat waar alle spelers het nog op tijd horen.
+    // Een keten aanpassen terwijl hij loopt laat de telling doorlopen.
+    if (state.song.aan && (!wasAan || body.herstart)) {
+      state.song.startMaat = state.running ? nextBarAfter(t + LEAD).beat / state.beatsPerBar : 0;
+    }
   } else if (body.action === 'swing') {
     var sw = Math.round(Math.max(0, Math.min(0.6, Number(body.swing) || 0)) * 100) / 100;
     if (sw === state.swing) return;
@@ -93,6 +112,7 @@ function publicState() {
     anchorBeat: state.anchorBeat,
     beatsPerBar: state.beatsPerBar,
     swing: state.swing,
+    song: state.song,
     prev: state.prev,
     laadVersie: opslag.laadVersie(),
     sessieNaam: opslag.sessieNaam(),
@@ -154,6 +174,10 @@ function bezet(plekId, apparaat) {
     if (id !== apparaat && players[id].plek === plekId && t - players[id].seen < 5000) return true;
   }
   return false;
+}
+
+function zetSong(song) {
+  if (song && song.keten) applyChange({ action: 'song', keten: song.keten, aan: song.aan });
 }
 
 function zetSwing(sw) {
@@ -251,9 +275,10 @@ var server = http.createServer(function (req, res) {
   if (url === '/api/sessies') {
     if (req.method === 'POST') {
       return readBody(req, function (body) {
-        var g = opslag.sessieActie(body, { bpm: state.bpm, swing: state.swing });
+        var g = opslag.sessieActie(body, { bpm: state.bpm, swing: state.swing, song: state.song });
         if (g.tempo) zetTempo(g.tempo);
         zetSwing(g.swing);
+        zetSong(g.song);
         sendJSON(res, g.antwoord);
       });
     }
@@ -274,7 +299,7 @@ var server = http.createServer(function (req, res) {
   }
 
   if (url === '/api/export') {
-    var ex = opslag.exporteer(vraag.soort, vraag.plek, { bpm: state.bpm, swing: state.swing });
+    var ex = opslag.exporteer(vraag.soort, vraag.plek, { bpm: state.bpm, swing: state.swing, song: state.song });
     if (!ex) return send(res, 404, 'text/plain', 'nothing to export');
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -289,6 +314,7 @@ var server = http.createServer(function (req, res) {
       var uit = opslag.importeer(body.bestand, String(body.plek || ''));
       if (uit.tempo) zetTempo(uit.tempo);
       zetSwing(uit.swing);
+      zetSong(uit.song);
       sendJSON(res, uit);
     });
   }
