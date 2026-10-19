@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>Himmelsgristle</title>
+<style>
+  :root {
+    --zwart: #0a0a0a;
+    --vlak: #161514;
+    --vlak2: #1f1d1b;
+    --lijn: #2c2a27;
+    --tekst: #e8e4da;
+    --stil: #8a857b;
+    --sein: #ff3b1f;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; background: #0a0a0a; background: var(--zwart); color: #e8e4da; color: var(--tekst);
+    font-family: "Courier New", Courier, monospace;
+    overscroll-behavior: none; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  body { padding: 12px 12px 40px; min-height: 100vh; }
+  .verborgen { display: none !important; }
+
+  h1 { font-size: 18px; letter-spacing: 6px; margin: 0; font-weight: bold; }
+  .kop { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .kop .rol { color: var(--stil); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .label { color: var(--stil); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 14px 0 6px; }
+
+  .rij { display: flex; align-items: stretch; margin: 0 -3px 6px; }
+  .rij > * { margin: 0 3px; }
+
+  button {
+    font-family: inherit; font-size: 17px; font-weight: bold; color: var(--tekst);
+    background: var(--vlak); border: 1px solid var(--lijn); min-height: 52px; flex: 1;
+    padding: 0 4px; cursor: pointer; border-radius: 0;
+  }
+  button:active { background: var(--lijn); }
+  button.sein { background: var(--sein); color: var(--zwart); border-color: var(--sein); }
+  button.groot { font-size: 22px; letter-spacing: 4px; min-height: 64px; }
+  .waarde {
+    flex: 1.4; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: bold; border: 1px solid var(--lijn);
+  }
+  .waarde small { font-size: 12px; color: var(--stil); margin-left: 5px; }
+
+  /* tellen */
+  .tellen { display: flex; margin: 0 -3px 10px; }
+  .tellen > div {
+    flex: 1; margin: 0 3px; height: 14px; background: var(--vlak); border: 1px solid var(--lijn); font-size: 0; overflow: hidden;
+  }
+  .tellen.groot > div { height: 72px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: bold; color: var(--stil); }
+  .tellen > div.aan { background: var(--tekst); border-color: var(--tekst); color: var(--zwart); }
+  .tellen > div.een.aan { background: var(--sein); border-color: var(--sein); }
+
+  /* stemkeuze */
+  .stemmen button { font-size: 13px; letter-spacing: 1px; min-height: 46px; position: relative; }
+  .stemmen button.gekozen { background: var(--tekst); color: var(--zwart); border-color: var(--tekst); }
+  .stemmen button.flits { border-color: var(--sein); }
+  .stemmen button.stil { text-decoration: line-through; color: var(--stil); }
+
+  /* stappen */
+  .stappen { display: flex; margin: 0 -3px 6px; }
+  .stappen .stap {
+    flex: 1; margin: 0 3px; padding-bottom: 11%; position: relative;
+    background: var(--vlak); border: 1px solid var(--lijn); cursor: pointer;
+  }
+  .stappen .stap.tel { background: var(--vlak2); }
+  .stappen .stap.aan { background: var(--tekst); border-color: var(--tekst); }
+  .stappen .stap.accent { background: var(--sein); border-color: var(--sein); }
+  .stappen .stap.nu { box-shadow: inset 0 0 0 3px var(--sein); }
+  .stappen .stap.aan.nu, .stappen .stap.accent.nu { box-shadow: inset 0 0 0 3px var(--zwart); }
+  .uitleg { color: var(--stil); font-size: 11px; line-height: 1.5; margin: 4px 0 0; }
+
+  /* schuiven */
+  .knoppen .schuif { margin-bottom: 4px; }
+  .knoppen .schuif label { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 1px; color: var(--stil); text-transform: uppercase; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 38px; background: transparent; margin: 0; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; background: var(--lijn); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 30px; height: 30px; margin-top: -13px; background: var(--tekst); border: 0; border-radius: 0;
+  }
+  input[type=range]::-moz-range-track { height: 4px; background: var(--lijn); }
+  input[type=range]::-moz-range-thumb { width: 30px; height: 30px; background: var(--tekst); border: 0; border-radius: 0; }
+
+  input[type=text] {
+    font-family: inherit; font-size: 17px; color: var(--tekst); background: var(--vlak);
+    border: 1px solid var(--lijn); padding: 10px; width: 100%; border-radius: 0;
+  }
+
+  .status { color: var(--stil); font-size: 12px; line-height: 1.6; margin-top: 12px; }
+  .status b { color: var(--tekst); font-weight: normal; }
+  .slecht { color: var(--sein) !important; }
+  .voet { color: var(--stil); font-size: 11px; margin-top: 18px; border-top: 1px solid var(--lijn); padding-top: 8px; }
+
+  /* Masterblaster */
+  .master { border: 1px solid var(--sein); padding: 12px; margin-bottom: 14px; }
+  .master .titel { color: var(--sein); font-size: 12px; letter-spacing: 3px; font-weight: bold; margin-bottom: 10px; }
+  .master .samen { display: flex; align-items: center; }
+  .master .qr { background: #fff; padding: 6px; flex: none; margin-right: 12px; line-height: 0; }
+  .master .qr img { display: block; width: 132px; height: 132px; image-rendering: pixelated; }
+  .master .adres { font-size: 15px; font-weight: bold; word-break: break-all; }
+  .master .klein { color: var(--stil); font-size: 11px; line-height: 1.5; margin-top: 6px; word-break: break-all; }
+  .master .spelers { font-size: 12px; line-height: 1.6; margin-top: 10px; color: var(--stil); }
+  .master .spelers b { color: var(--tekst); font-weight: normal; }
+
+  /* poort */
+  #poort {
+    position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: var(--zwart);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; z-index: 10;
+    overflow-y: auto;
+  }
+  #poort h1 { font-size: 28px; letter-spacing: 8px; margin-bottom: 10px; text-align: center; line-height: 1.15; }
+  #poort p { color: var(--stil); text-align: center; font-size: 13px; max-width: 320px; line-height: 1.5; margin: 6px 0; }
+  #poort button { flex: none; width: 100%; max-width: 320px; margin-top: 12px; }
+  #poort button.uit { color: var(--stil); border-style: dashed; }
+</style>
+</head>
+<body>
+
+<div id="poort">
+  <h1>HIMMELS<br>GRISTLE</h1>
+  <p>Kies wat dit toestel wordt.</p>
+  <button class="groot sein" id="kiesDrums">DRUMS</button>
+  <button class="groot" id="kiesKlik">KLIKTEST</button>
+  <button class="uit" id="kiesLater">BAS &middot; LEAD &middot; PAD<br><small>komt nog</small></button>
+  <p id="poortinfo"></p>
+</div>
+
+<!-- Alleen op de Masterblaster zelf: zo haken de andere telefoons aan -->
+<div class="master verborgen" id="master">
+  <div class="titel">MASTERBLASTER &middot; SPELERS AANHAKEN</div>
+  <div class="samen">
+    <div class="qr" id="qr"></div>
+    <div>
+      <div class="adres" id="adres">adres zoeken...</div>
+      <div class="klein" id="adresUitleg">Andere telefoon op de hotspot, mobiele data uit, en dit adres openen of de code scannen.</div>
+    </div>
+  </div>
+  <div class="klein" id="andereAdressen"></div>
+  <div class="spelers" id="spelers"></div>
+</div>
+
+<div class="kop">
+  <h1>HIMMELSGRISTLE</h1>
+  <span class="rol" id="rolNaam"></span>
+</div>
+
+<div class="tellen" id="tellen">
+  <div class="een" id="t0">1</div><div id="t1">2</div><div id="t2">3</div><div id="t3">4</div>
+</div>
+
+<div class="rij">
+  <button class="sein" id="startstop">START</button>
+  <button id="tmin">-</button>
+  <div class="waarde"><span id="bpm">120</span><small>bpm</small></div>
+  <button id="tplus">+</button>
+</div>
+
+<!-- Drums -->
+<div id="drumsDeel" class="verborgen">
+  <div class="rij stemmen" id="stemKeuze"></div>
+  <div class="stappen" id="stappenA"></div>
+  <div class="stappen" id="stappenB"></div>
+  <p class="uitleg">Tik: aan. Nog eens: accent. Nog eens: uit. Dubbeltik op een stemnaam: stil.</p>
+  <div class="knoppen" id="knoppen"></div>
+</div>
+
+<div class="rij" style="margin-top:14px">
+  <button id="toonInstellingen">INSTELLINGEN</button>
+</div>
+
+<div id="instellingen" class="verborgen">
+  <div class="label">compensatie</div>
+  <div class="rij">
+    <button id="lmin10">-10</button>
+    <button id="lmin1">-1</button>
+    <div class="waarde"><span id="lat">0</span><small>ms</small></div>
+    <button id="lplus1">+1</button>
+    <button id="lplus10">+10</button>
+  </div>
+  <p class="uitleg">Klinkt deze telefoon te laat, schuif omhoog. Te vroeg, schuif omlaag. Goed is als alle klikken als &eacute;&eacute;n klinken.</p>
+
+  <div class="label">tempo grof</div>
+  <div class="rij">
+    <button id="tmin10">-10</button>
+    <button id="tplus10">+10</button>
+  </div>
+
+  <div class="label">metronoom</div>
+  <div class="rij">
+    <button id="klikAan">KLIK UIT</button>
+  </div>
+
+  <div class="label">naam van dit toestel</div>
+  <input type="text" id="naam" maxlength="30" autocomplete="off">
+
+  <div class="label">rol</div>
+  <div class="rij">
+    <button id="wisselRol">ANDERE ROL KIEZEN</button>
+  </div>
+</div>
+
+<div class="status" id="status">verbinden...</div>
+<div class="voet" id="voet">Himmelsgristle</div>
+
+<script src="vendor/qrcode.js"></script>
+<script src="js/basis.js"></script>
+<script src="js/klok.js"></script>
+<script src="js/drums.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
