@@ -8,8 +8,10 @@ if git fetch -q origin && git reset -q --hard origin/main; then
   cp termux/Himmelsgristle-starten.sh ~/.shortcuts/"Himmelsgristle starten"
   cp termux/Himmelsgristle-bijwerken.sh ~/.shortcuts/"Himmelsgristle bijwerken"
   chmod +x ~/.shortcuts/*
+  touch ~/.bashrc
+  grep -q "himmelsgristle/termux/menu.sh" ~/.bashrc || echo '[ -f ~/himmelsgristle/termux/menu.sh ] && . ~/himmelsgristle/termux/menu.sh' >> ~/.bashrc
   echo "  Bijgewerkt naar versie $(grep -o "VERSIE = '[^']*'" server.js | cut -d"'" -f2)."
-  echo "  Zet de hotspot weer aan en tik op Himmelsgristle starten."
+  echo "  Zet de hotspot weer aan en start Himmelsgristle."
 else
   echo "  Ophalen mislukt. Staat wifi of mobiele data aan?"
 fi

@@ -26,7 +26,12 @@ cp ~/himmelsgristle/termux/Himmelsgristle-starten.sh ~/.shortcuts/"Himmelsgristl
 cp ~/himmelsgristle/termux/Himmelsgristle-bijwerken.sh ~/.shortcuts/"Himmelsgristle bijwerken"
 chmod +x ~/.shortcuts/*
 
+# Keuzemenu bij het openen van Termux (voor launchers zonder widgets)
+touch ~/.bashrc
+grep -q "himmelsgristle/termux/menu.sh" ~/.bashrc || echo '[ -f ~/himmelsgristle/termux/menu.sh ] && . ~/himmelsgristle/termux/menu.sh' >> ~/.bashrc
+
 echo ""
-echo "  Klaar. Zet nu de knoppen op je startscherm:"
-echo "  lang drukken op het startscherm > Widgets > Termux:Widget"
+echo "  Klaar. Voortaan krijg je bij het openen van Termux een keuzemenu:"
+echo "  1 = starten, 2 = bijwerken."
+echo "  Met een launcher die widgets kan, staan de knoppen ook onder Termux:Widget."
 echo ""

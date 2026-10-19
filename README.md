@@ -19,14 +19,14 @@ Op een Android-telefoon met [Termux](https://f-droid.org/packages/com.termux/) e
 curl -sL https://raw.githubusercontent.com/HimmelsbachInternational/himmelsgristle/main/termux/eerste-keer.sh | bash
 ```
 
-Zet daarna de knoppen op je startscherm: lang drukken op het startscherm, Widgets, Termux:Widget. Je krijgt twee knoppen: **Himmelsgristle starten** en **Himmelsgristle bijwerken**.
+Voortaan krijg je bij het openen van Termux een keuzemenu: **1** om te starten, **2** om bij te werken. Werkt je launcher met widgets, dan kun je ook de knoppen van Termux:Widget op je startscherm zetten.
 
 Vraagt Android of Termux over andere apps mag tekenen, sta dat toe; anders kunnen de knoppen Termux niet openen. Zet ook de batterijbesparing voor Termux uit.
 
 ## Spelen
 
 1. Zet op de Masterblaster de **hotspot** aan.
-2. Tik op **Himmelsgristle starten**.
+2. Open Termux en kies **1** (of tik op de knop Himmelsgristle starten).
 3. Open op de Masterblaster in Chrome `http://localhost:8080`. Daar staan het spelersadres en de QR-code.
 4. Verbind de andere toestellen met de hotspot, zet hun **mobiele data uit**, en scan de code of typ het adres.
 5. Kies op elk toestel een rol en tik op START.
@@ -35,7 +35,7 @@ Klinkt een toestel te laat of te vroeg, stel dan onder INSTELLINGEN de compensat
 
 ## Bijwerken
 
-Alleen de Masterblaster hoeft bijgewerkt te worden; de spelers laden alles van hem. Zet de hotspot even uit en wifi aan (of laat mobiele data aan), tik op **Himmelsgristle bijwerken**, en zet daarna de hotspot weer aan.
+Alleen de Masterblaster hoeft bijgewerkt te worden; de spelers laden alles van hem. Zet de hotspot even uit en wifi aan (of laat mobiele data aan), open Termux en kies **2**, en zet daarna de hotspot weer aan.
 
 ## Hoe het werkt
 
