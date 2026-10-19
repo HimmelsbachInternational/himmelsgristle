@@ -8,7 +8,7 @@ var path = require('path');
 var os = require('os');
 var perf = require('perf_hooks').performance;
 
-var VERSIE = '0.7';
+var VERSIE = '0.7.1';
 var PORT = parseInt(process.env.PORT, 10) || 8080;
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -214,14 +214,37 @@ function send(res, code, type, body) {
 function sendJSON(res, obj) { send(res, 200, 'application/json', JSON.stringify(obj)); }
 
 function readBody(req, cb) {
+  var res = req._antwoord;
   var data = '';
   req.on('data', function (c) { data += c; if (data.length > 200000) req.destroy(); });
   req.on('end', function () {
-    try { cb(JSON.parse(data || '{}')); } catch (e) { cb({}); }
+    var body = {};
+    try { body = JSON.parse(data || '{}'); } catch (e) {}
+    try { cb(body); } catch (e) {
+      logFout(req.method + ' ' + req.url, e);
+      try { send(res, 500, 'text/plain', 'error'); } catch (x) {}
+    }
   });
 }
 
+// Een fout in één verzoek mag nooit de hele Masterblaster laten vallen.
+var FOUTLOG = path.join(__dirname, 'opslag', 'fouten.log');
+function logFout(waar, e) {
+  var regel = new Date().toISOString() + '  ' + waar + '  ' + (e && e.stack ? e.stack : String(e)) + '\n';
+  console.log('  ERROR ' + waar + ': ' + (e && e.message ? e.message : e));
+  try { fs.appendFileSync(FOUTLOG, regel); } catch (x) {}
+}
+process.on('uncaughtException', function (e) { logFout('uncaught', e); });
+
 var server = http.createServer(function (req, res) {
+  try { verwerk(req, res); } catch (e) {
+    logFout(req.method + ' ' + req.url, e);
+    try { send(res, 500, 'text/plain', 'error'); } catch (x) {}
+  }
+});
+
+function verwerk(req, res) {
+  req._antwoord = res;
   var url = req.url.split('?')[0];
 
   // Komt iemand van buitenaf binnen, dan weten we zeker welk adres werkt.
@@ -350,7 +373,7 @@ var server = http.createServer(function (req, res) {
     if (err) return send(res, 404, 'text/plain', 'not found');
     send(res, 200, TYPES[path.extname(full)] || 'application/octet-stream', buf);
   });
-});
+}
 
 server.on('error', function (e) {
   if (e.code === 'EADDRINUSE') {
@@ -358,7 +381,7 @@ server.on('error', function (e) {
     console.log('  The server is already running (port ' + PORT + ' is taken).');
     console.log('  Just open http://localhost:' + PORT + ' in Chrome.');
     console.log('');
-    process.exit(0);
+    process.exit(3);
   }
   throw e;
 });

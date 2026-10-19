@@ -4,7 +4,7 @@
   'use strict';
 
   var $ = HG.$;
-  var VERSIE = '0.7';
+  var VERSIE = '0.7.1';
   var isMaster = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 
   // ---------- toestel ----------
