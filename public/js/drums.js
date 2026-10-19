@@ -56,7 +56,7 @@
   var stemmen = [
     {
       id: 'kick', naam: 'KICK',
-      knoppen: [['toon', 'Toon', 0.35], ['val', 'Val', 0.5], ['decay', 'Decay', 0.35], ['klik', 'Klik', 0.3], ['vuil', 'Vuil', 0.3], ['vol', 'Volume', 0.9]],
+      knoppen: [['toon', 'Pitch', 0.35], ['val', 'Drop', 0.5], ['decay', 'Decay', 0.35], ['klik', 'Click', 0.3], ['vuil', 'Filth', 0.3], ['vol', 'Volume', 0.9]],
       speel: function (ctx, uit, t, a, p) {
         var f0 = 35 + p.toon * 90;
         var sweep = 0.025 + p.val * 0.12;
@@ -75,7 +75,7 @@
     },
     {
       id: 'snare', naam: 'SNARE',
-      knoppen: [['toon', 'Toon', 0.4], ['mix', 'Toon / ruis', 0.6], ['decay', 'Decay', 0.35], ['snap', 'Snap', 0.5], ['vuil', 'Vuil', 0.25], ['vol', 'Volume', 0.8]],
+      knoppen: [['toon', 'Pitch', 0.4], ['mix', 'Tone / noise', 0.6], ['decay', 'Decay', 0.35], ['snap', 'Snap', 0.5], ['vuil', 'Filth', 0.25], ['vol', 'Volume', 0.8]],
       speel: function (ctx, uit, t, a, p) {
         var f = 120 + p.toon * 280;
         var dec = 0.06 + p.decay * 0.5;
@@ -91,7 +91,7 @@
     },
     {
       id: 'hat', naam: 'HIHAT',
-      knoppen: [['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.5], ['open', 'Open', 0], ['ruw', 'Ruw', 0.3], ['vuil', 'Vuil', 0.15], ['vol', 'Volume', 0.6]],
+      knoppen: [['decay', 'Decay', 0.3], ['kleur', 'Color', 0.5], ['open', 'Open', 0], ['ruw', 'Rough', 0.3], ['vuil', 'Filth', 0.15], ['vol', 'Volume', 0.6]],
       speel: function (ctx, uit, t, a, p) {
         var dec = (0.02 + p.decay * 0.15) * (1 + p.open * 6);
         var hp = filter(ctx, 'highpass', 4000 + p.kleur * 6000);
@@ -112,7 +112,7 @@
     },
     {
       id: 'clap', naam: 'CLAP',
-      knoppen: [['spreiding', 'Spreiding', 0.4], ['decay', 'Decay', 0.3], ['kleur', 'Kleur', 0.4], ['aantal', 'Klappen', 0.5], ['vuil', 'Vuil', 0.3], ['vol', 'Volume', 0.7]],
+      knoppen: [['spreiding', 'Spread', 0.4], ['decay', 'Decay', 0.3], ['kleur', 'Color', 0.4], ['aantal', 'Claps', 0.5], ['vuil', 'Filth', 0.3], ['vol', 'Volume', 0.7]],
       speel: function (ctx, uit, t, a, p) {
         var n = 2 + Math.round(p.aantal * 3);
         var gat = 0.006 + p.spreiding * 0.02;
@@ -134,8 +134,8 @@
       }
     },
     {
-      id: 'metaal', naam: 'METAAL',
-      knoppen: [['toon', 'Toon', 0.3], ['ring', 'Ringmod', 0.6], ['decay', 'Decay', 0.3], ['galm', 'Galm', 0.5], ['vuil', 'Vuil', 0.35], ['vol', 'Volume', 0.5]],
+      id: 'metaal', naam: 'METAL',
+      knoppen: [['toon', 'Pitch', 0.3], ['ring', 'Ringmod', 0.6], ['decay', 'Decay', 0.3], ['galm', 'Pipe', 0.5], ['vuil', 'Filth', 0.35], ['vol', 'Volume', 0.5]],
       speel: function (ctx, uit, t, a, p) {
         var f = 150 + p.toon * 1200;
         var dec = 0.05 + p.decay * 1.2;
@@ -178,20 +178,10 @@
       }
       return p;
     },
-    // Een electroclash-beginnetje: vier op de vloer, clap op twee en vier, hats ertussen.
+    // Starts empty: the matrix is yours.
     standaardPatroon: function () {
-      function rij(stappen) {
-        var r = []; for (var i = 0; i < 16; i++) r.push(0);
-        for (var k in stappen) r[k] = stappen[k];
-        return r;
-      }
-      return {
-        kick: rij({ 0: 2, 4: 1, 8: 2, 12: 1 }),
-        snare: rij({}),
-        hat: rij({ 2: 1, 6: 1, 10: 1, 14: 2 }),
-        clap: rij({ 4: 1, 12: 2 }),
-        metaal: rij({ 7: 1, 15: 1 })
-      };
+      var leeg = function () { var r = []; for (var i = 0; i < 16; i++) r.push(0); return r; };
+      return { kick: leeg(), snare: leeg(), hat: leeg(), clap: leeg(), metaal: leeg() };
     },
     speel: function (id, t, accent, params) {
       var ctx = HG.audio.ctx;

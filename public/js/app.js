@@ -4,7 +4,7 @@
   'use strict';
 
   var $ = HG.$;
-  var VERSIE = '0.5';
+  var VERSIE = '0.6';
   var isMaster = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 
   // ---------- toestel ----------
@@ -20,6 +20,50 @@
   // bas/lead: { patronen: [4 x [16]], params: {...}, grond: 36, actief: 0 }
 
   var MONO = { bas: HG.bas, lead: HG.lead };
+
+  // ---------- arpeggiator ----------
+  // Elke noot in de matrix wordt een loopje over een akkoord.
+
+  var ARP_MODI = ['ARP OFF', 'ARP UP', 'ARP DOWN', 'ARP UP/DN', 'ARP RND'];
+  var ARP_AKKOORDEN = [
+    ['OCT', [0]], ['5TH', [0, 7]], ['MIN', [0, 3, 7]], ['MAJ', [0, 4, 7]],
+    ['DIM', [0, 3, 6]], ['SUS', [0, 5, 7]], ['MIN7', [0, 3, 7, 10]]
+  ];
+  var arpTeller = 0;
+
+  function arpNoten(grondtoon, a) {
+    var akk = ARP_AKKOORDEN[a.akkoord][1], uit = [];
+    for (var o = 0; o < a.bereik; o++) {
+      for (var i = 0; i < akk.length; i++) uit.push(Math.min(108, grondtoon + akk[i] + 12 * o));
+    }
+    if (akk.length === 1 && a.bereik === 1) uit.push(Math.min(108, grondtoon + 12));
+    return uit;
+  }
+
+  function arpKies(noten, modus, n) {
+    var L = noten.length;
+    if (modus === 1) return noten[n % L];
+    if (modus === 2) return noten[L - 1 - (n % L)];
+    if (modus === 3) {
+      if (L < 2) return noten[0];
+      var rond = 2 * L - 2, k = n % rond;
+      return noten[k < L ? k : rond - k];
+    }
+    return noten[Math.floor(Math.random() * L)];
+  }
+
+  function speelMono(stap, wanneer, d, stapDuur) {
+    var m = MONO[rol], p = d.patronen[d.actief], v = p[stap], a = d.arp;
+    if (!a || !a.modus) { m.speel(stap, wanneer, p, d.grond, d.params, stapDuur); return; }
+    if (v < 0) { m.rust(wanneer); arpTeller = 0; return; }
+    var noten = arpNoten(d.grond + v % 100, a);
+    var subDuur = stapDuur / a.snel;
+    var volgendeAan = p[(stap + 1) % 16] >= 0;
+    for (var sub = 0; sub < a.snel; sub++) {
+      var laatste = sub === a.snel - 1;
+      m.noot(wanneer + sub * subDuur, arpKies(noten, a.modus, arpTeller++), v >= 100 && sub === 0, subDuur, !laatste || volgendeAan, d.params);
+    }
+  }
   var data = {};          // per rol
   var volgend = null;     // patroon dat op de volgende maat ingaat
   var bekendeLaadVersie = null;
@@ -33,7 +77,8 @@
     }
     var m = MONO[r];
     var q = m.standaardPatroon();
-    return { patronen: [q, q.slice(), q.slice(), q.slice()], params: m.standaardParams(), grond: m.standaardGrond, actief: 0 };
+    return { patronen: [q, q.slice(), q.slice(), q.slice()], params: m.standaardParams(), grond: m.standaardGrond, actief: 0,
+      arp: { modus: 0, akkoord: 0, bereik: 1, snel: 1 } };
   }
 
   // Maakt data heel en veilig: ontbrekende stukken worden aangevuld en alle waarden worden
@@ -73,6 +118,13 @@
     } else {
       uit.params = heleParams(s.params, d.params);
       uit.grond = Math.round(getal(d.grond, s.grond, 24, 84));
+      var a = d.arp || {};
+      uit.arp = {
+        modus: Math.round(getal(a.modus, 0, 0, ARP_MODI.length - 1)),
+        akkoord: Math.round(getal(a.akkoord, 0, 0, ARP_AKKOORDEN.length - 1)),
+        bereik: Math.round(getal(a.bereik, 1, 1, 3)),
+        snel: Math.round(getal(a.snel, 1, 1, 2))
+      };
       uit.patronen = [];
       for (var j = 0; j < 4; j++) {
         var q = [];
@@ -130,7 +182,7 @@
       HG.bewaar('plek_' + r, plek);
       if (antw.data) {
         data[r] = heel(r, antw.data);
-        if (opties.aanhaken) melding('PERSISTENCE IS ALL', plekNaam + ': klank en patronen zijn terug');
+        if (opties.aanhaken) melding('PERSISTENCE IS ALL', plekNaam + ': sound and patterns are back');
       } else {
         // Een lege plek. Bij de eerste keer na een oude versie nemen we mee wat er nog op dit toestel stond.
         var oud = (opties.aanhaken && !HG.haal('gemigreerd_' + r)) ? oudeLokaleData(r) : null;
@@ -148,7 +200,7 @@
   }
 
   function tekenPlekNaam() {
-    $('rolNaam').innerHTML = rol === 'klik' ? 'kliktest' : HG.escape(plekNaam || rol);
+    $('rolNaam').innerHTML = rol === 'klik' ? 'click test' : HG.escape(plekNaam || rol);
     $('plekNaam').innerHTML = HG.escape(plekNaam || '');
   }
 
@@ -209,7 +261,7 @@
     }
     if (MONO[rol] && d) {
       var bpm = HG.klok.st ? HG.klok.st.bpm : 120;
-      MONO[rol].speel(stap, wanneer, d.patronen[d.actief], d.grond, d.params, 15 / bpm);
+      speelMono(stap, wanneer, d, 15 / bpm);
     }
     HG.audio.opHetGeluid(wanneer, function () { toonLoper(stap); });
   };
@@ -316,7 +368,7 @@
       HG.klasse(patKnoppen[i], 'volgend', volgend === i);
       HG.klasse(patKnoppen[i], 'leeg', patroonLeeg(d, i));
     }
-    $('patWis').innerHTML = wisZeker ? 'ZEKER?' : 'WIS';
+    $('patWis').innerHTML = wisZeker ? 'SURE?' : 'CLEAR';
   }
 
   for (var pk = 0; pk < 4; pk++) {
@@ -415,7 +467,7 @@
     HG.klasse($('drumPaneel'), 'verborgen', !s);
     if (!s) return;
     $('drumTitel').innerHTML = s.naam;
-    $('drumStil').innerHTML = d.stil[s.id] ? 'STIL' : 'AAN';
+    $('drumStil').innerHTML = d.stil[s.id] ? 'MUTED' : 'ON';
     HG.klasse($('drumStil'), 'aan', !!d.stil[s.id]);
     bouwSchuiven($('drumKnoppen'), s.knoppen, d.params[s.id]);
   }
@@ -463,8 +515,28 @@
     HG.knop('notenPlus', function () { grond(1); });
     HG.knop('notenOctMin', function () { grond(-12); });
     HG.knop('notenOctPlus', function () { grond(12); });
+    function arp(veld, max, min) {
+      var a = data[rol].arp;
+      a[veld] = a[veld] + 1 > max ? min : a[veld] + 1;
+      if (veld === 'modus') arpTeller = 0;
+      bewaar();
+      tekenArp();
+    }
+    HG.knop('arpModus', function () { arp('modus', ARP_MODI.length - 1, 0); });
+    HG.knop('arpAkkoord', function () { arp('akkoord', ARP_AKKOORDEN.length - 1, 0); });
+    HG.knop('arpBereik', function () { arp('bereik', 3, 1); });
+    HG.knop('arpSnel', function () { arp('snel', 2, 1); });
     HG.knop('notenKlankKnop', function () { HG.klasse($('notenPaneel'), 'verborgen', $('notenPaneel').className.indexOf('verborgen') < 0); });
     HG.knop('notenDicht', function () { HG.klasse($('notenPaneel'), 'verborgen', true); });
+  }
+
+  function tekenArp() {
+    var a = data[rol] && data[rol].arp; if (!a) return;
+    $('arpModus').innerHTML = ARP_MODI[a.modus];
+    HG.klasse($('arpModus'), 'aan', a.modus > 0);
+    $('arpAkkoord').innerHTML = ARP_AKKOORDEN[a.akkoord][0];
+    $('arpBereik').innerHTML = a.bereik + ' OCT';
+    $('arpSnel').innerHTML = a.snel === 2 ? '1/32' : '1/16';
   }
 
   function tekenNoten() {
@@ -488,7 +560,8 @@
     if (rol === 'drums') tekenDrums();
     if (MONO[rol]) {
       tekenNoten();
-      $('notenTitel').innerHTML = rol === 'bas' ? 'BAS' : 'LEAD';
+      tekenArp();
+      $('notenTitel').innerHTML = rol === 'bas' ? 'BASS' : 'LEAD';
       bouwSchuiven($('notenKnoppen'), MONO[rol].knoppen, data[rol].params);
     }
     tekenPatronen();
@@ -497,7 +570,7 @@
   // ---------- sessies ----------
 
   function tekenSessies(inf) {
-    $('sessieNaam').innerHTML = inf.naam ? HG.escape(inf.naam) : 'nog niet bewaard';
+    $('sessieNaam').innerHTML = inf.naam ? HG.escape(inf.naam) : 'not saved yet';
     var lijst = $('sessieLijst');
     lijst.innerHTML = '';
     for (var i = 0; i < inf.lijst.length; i++) {
@@ -505,17 +578,17 @@
         var rij = document.createElement('div');
         rij.className = 'rij';
         var laad = document.createElement('button');
-        laad.innerHTML = 'LADEN: ' + HG.escape(naam);
+        laad.innerHTML = 'LOAD: ' + HG.escape(naam);
         var wis = document.createElement('button');
         wis.className = 'klein';
-        wis.innerHTML = 'WIS';
+        wis.innerHTML = 'DEL';
         rij.appendChild(laad); rij.appendChild(wis);
         lijst.appendChild(rij);
         HG.knop(laad, function () {
-          if (window.confirm('Sessie "' + naam + '" laden? Wat nu speelt wordt vervangen, op alle toestellen.')) sessieActie({ actie: 'laad', naam: naam });
+          if (window.confirm('Load session "' + naam + '"? What is playing now gets replaced, on every device.')) sessieActie({ actie: 'laad', naam: naam });
         });
         HG.knop(wis, function () {
-          if (window.confirm('Sessie "' + naam + '" weggooien?')) sessieActie({ actie: 'wis', naam: naam });
+          if (window.confirm('Throw away session "' + naam + '"?')) sessieActie({ actie: 'wis', naam: naam });
         });
       })(inf.lijst[i]);
     }
@@ -530,18 +603,18 @@
   function sessieActie(body) {
     HG.vraag('POST', '/api/sessies', body, function (t) {
       try { tekenSessies(JSON.parse(t)); } catch (e) {}
-      if (body.actie === 'bewaar') melding('OPGESLAGEN', body.naam);
+      if (body.actie === 'bewaar') melding('SAVED', body.naam);
     });
   }
 
   HG.knop('sessieBewaar', function () {
     // Eerst eigen wijzigingen meteen doorsturen, dan bewaren.
     var huidig = (HG.klok.st && HG.klok.st.sessieNaam) || '';
-    var naam = window.prompt('Naam van de sessie', huidig);
+    var naam = window.prompt('Name of the session', huidig);
     if (naam) stuurNu(function () { sessieActie({ actie: 'bewaar', naam: naam }); });
   });
   HG.knop('sessieNieuw', function () {
-    if (window.confirm('Nieuwe, lege sessie beginnen? Wat nu speelt wordt vervangen door de beginpatronen, op alle toestellen. Bewaar eerst als je het wilt houden.')) sessieActie({ actie: 'nieuw' });
+    if (window.confirm('Start a new, empty session? What is playing now gets replaced on every device. Save first if you want to keep it.')) sessieActie({ actie: 'nieuw' });
   });
 
   // ---------- plekken: wisselen, hernoemen, nieuw ----------
@@ -583,9 +656,9 @@
       for (var i = 0; i < lijst.length; i++) {
         (function (p) {
           if (p.rol !== rol) return;
-          if (p.id === plek) lijstRij(houder, HG.escape(p.naam) + ' (dit toestel)', 'huidig', function () {});
-          else if (p.bezet) lijstRij(houder, HG.escape(p.naam) + ' (in gebruik)', '', null, null, null, true);
-          else lijstRij(houder, 'WISSEL NAAR ' + HG.escape(p.naam), '', function () { wisselPlek({ gewenst: p.id }); });
+          if (p.id === plek) lijstRij(houder, HG.escape(p.naam) + ' (this device)', 'huidig', function () {});
+          else if (p.bezet) lijstRij(houder, HG.escape(p.naam) + ' (in use)', '', null, null, null, true);
+          else lijstRij(houder, 'SWITCH TO ' + HG.escape(p.naam), '', function () { wisselPlek({ gewenst: p.id }); });
         })(lijst[i]);
       }
     });
@@ -593,7 +666,7 @@
 
   HG.knop('plekHernoem', function () {
     if (!plek) return;
-    var naam = window.prompt('Naam van dit instrument', plekNaam);
+    var naam = window.prompt('Name of this instrument', plekNaam);
     if (!naam) return;
     HG.vraag('POST', '/api/plek/naam', { plek: plek, naam: naam }, function () {
       plekNaam = naam.replace(/[^A-Za-z0-9 _\-]/g, '').trim().slice(0, 40) || plekNaam;
@@ -602,7 +675,7 @@
   });
 
   HG.knop('plekNieuw', function () {
-    if (window.confirm('Een nieuwe, lege plek voor dit instrument? Je huidige plek blijft bewaard.')) wisselPlek({ nieuw: true });
+    if (window.confirm('A new, empty slot for this instrument? Your current slot stays saved.')) wisselPlek({ nieuw: true });
   });
 
   // ---------- klankbibliotheek ----------
@@ -625,13 +698,13 @@
       houder.innerHTML = '';
       for (var i = 0; i < lijst.length; i++) {
         (function (naam) {
-          lijstRij(houder, 'LADEN: ' + HG.escape(naam), '', function () {
+          lijstRij(houder, 'LOAD: ' + HG.escape(naam), '', function () {
             HG.vraag('GET', '/api/klanken?rol=' + r + '&naam=' + encodeURIComponent(naam) + '&' + Math.random(), null, function (t2) {
               var k = null; try { k = JSON.parse(t2).klank; } catch (e) {}
-              if (k && rol === r) { pasKlankToe(k); melding('KLANK GELADEN', naam); }
+              if (k && rol === r) { pasKlankToe(k); melding('SOUND LOADED', naam); }
             });
-          }, 'WIS', function () {
-            if (window.confirm('Klank "' + naam + '" weggooien?')) {
+          }, 'DEL', function () {
+            if (window.confirm('Throw away sound "' + naam + '"?')) {
               HG.vraag('POST', '/api/klanken', { actie: 'wis', rol: r, naam: naam }, function () { haalKlanken(); });
             }
           });
@@ -642,10 +715,10 @@
 
   HG.knop('klankBewaar', function () {
     if (!rol || rol === 'klik' || !data[rol]) return;
-    var naam = window.prompt('Naam van deze klank', '');
+    var naam = window.prompt('Name of this sound', '');
     if (!naam) return;
     HG.vraag('POST', '/api/klanken', { actie: 'bewaar', rol: rol, naam: naam, klank: { params: data[rol].params } }, function () {
-      haalKlanken(); melding('KLANK BEWAARD', naam);
+      haalKlanken(); melding('SOUND SAVED', naam);
     });
   });
 
@@ -662,7 +735,7 @@
   }
 
   function exporteer(soort) {
-    if (soort !== 'sessie' && (!plek || rol === 'klik')) { melding('KIES EERST EEN ROL'); return; }
+    if (soort !== 'sessie' && (!plek || rol === 'klik')) { melding('CHOOSE A ROLE FIRST'); return; }
     stuurNu(function () { download('/api/export?soort=' + soort + '&plek=' + encodeURIComponent(plek || '') + '&' + Math.random()); });
   }
 
@@ -674,31 +747,31 @@
   $('importBestand').addEventListener('change', function () {
     var f = this.files && this.files[0];
     if (!f) return;
-    if (f.size > 190000) { melding('IMPORT MISLUKT', 'het bestand is te groot'); return; }
+    if (f.size > 190000) { melding('IMPORT FAILED', 'the file is too big'); return; }
     var lezer = new FileReader();
     lezer.onload = function () {
       var b = null;
       try { b = JSON.parse(lezer.result); } catch (e) {}
-      if (!b || !b.himmelsgristle) { melding('IMPORT MISLUKT', 'dit is geen Himmelsgristle-bestand'); return; }
-      if (b.soort === 'sessie' && !window.confirm('Sessie "' + (b.naam || '') + '" importeren? Wat nu speelt wordt vervangen, op alle toestellen.')) return;
-      if (b.soort === 'instrument' && !window.confirm('Instrument "' + (b.naam || '') + '" importeren? Klank en patronen van dit toestel worden vervangen.')) return;
+      if (!b || !b.himmelsgristle) { melding('IMPORT FAILED', 'this is not a Himmelsgristle file'); return; }
+      if (b.soort === 'sessie' && !window.confirm('Import session "' + (b.naam || '') + '"? What is playing now gets replaced, on every device.')) return;
+      if (b.soort === 'instrument' && !window.confirm('Import instrument "' + (b.naam || '') + '"? Sound and patterns on this device get replaced.')) return;
       clearTimeout(stuurTimer);
       HG.vraag('POST', '/api/import', { bestand: b, plek: plek }, function (t) {
         var u = {}; try { u = JSON.parse(t); } catch (e) {}
-        if (u.fout) { melding('IMPORT MISLUKT', u.fout); return; }
+        if (u.fout) { melding('IMPORT FAILED', u.fout); return; }
         if (u.soort === 'klank') {
           haalKlanken();
-          if (u.rol === rol) { pasKlankToe(u.klank); melding('KLANK GEIMPORTEERD', u.naam); }
-          else melding('KLANK BEWAARD', u.naam + ' staat nu bij de klanken voor ' + u.rol);
+          if (u.rol === rol) { pasKlankToe(u.klank); melding('SOUND IMPORTED', u.naam); }
+          else melding('SOUND SAVED', u.naam + ' is now in the ' + u.rol + ' sounds');
         } else if (u.soort === 'instrument') {
           clearTimeout(stuurTimer);
           var r = rol;
           laadPlek(r, { gewenst: plek }, function () { if (rol === r) { tekenRol(); haalPlekken(); } });
-          melding('INSTRUMENT GEIMPORTEERD', u.naam);
+          melding('INSTRUMENT IMPORTED', u.naam);
         } else if (u.soort === 'sessie') {
-          melding('SESSIE GEIMPORTEERD', u.naam);
+          melding('SESSION IMPORTED', u.naam);
         }
-      }, function () { melding('IMPORT MISLUKT', 'geen verbinding met de Masterblaster'); });
+      }, function () { melding('IMPORT FAILED', 'no connection to the Masterblaster'); });
     };
     lezer.readAsText(f);
   }, false);
@@ -729,18 +802,18 @@
         } catch (e) { $('qr').innerHTML = ''; }
       }
       if (!adres) {
-        $('adres').innerHTML = 'Geen netwerk gevonden';
-        $('adresUitleg').innerHTML = 'Zet de hotspot aan. Het adres verschijnt hier vanzelf.';
+        $('adres').innerHTML = 'No network found';
+        $('adresUitleg').innerHTML = 'Switch on the hotspot. The address shows up here by itself.';
         $('qr').innerHTML = '';
         laatsteAdres = null;
       } else if (inf.bevestigd) {
-        $('adresUitleg').innerHTML = 'Bevestigd: er is al een speler via dit adres binnen.';
+        $('adresUitleg').innerHTML = 'Confirmed: a player already joined through this address.';
       } else {
-        $('adresUitleg').innerHTML = 'Andere telefoon op de hotspot, mobiele data uit, en dit adres openen of de code scannen.';
+        $('adresUitleg').innerHTML = 'Other phone on the hotspot, mobile data off, then open this address or scan the code.';
       }
       var andere = [];
       for (var i = 0; i < inf.alle.length; i++) if (inf.alle[i] !== adres) andere.push(inf.alle[i]);
-      $('andereAdressen').innerHTML = (!inf.bevestigd && andere.length) ? 'Werkt het niet, probeer: ' + HG.escape(andere.join('  ')) : '';
+      $('andereAdressen').innerHTML = (!inf.bevestigd && andere.length) ? 'Not working? Try: ' + HG.escape(andere.join('  ')) : '';
     });
   }
 
@@ -751,9 +824,9 @@
       var p = s.players[i];
       if (p.id !== mijnId) anderen++;
       regels.push('<b>' + HG.escape(p.plekNaam || p.role || '') + '</b> ' + HG.escape(p.name) +
-        (p.id === mijnId ? ' (dit toestel)' : ' &middot; ' + p.rtt + ' ms'));
+        (p.id === mijnId ? ' (this device)' : ' &middot; ' + p.rtt + ' ms'));
     }
-    $('spelers').innerHTML = 'Aangehaakt (' + regels.length + '):<br>' + regels.join('<br>');
+    $('spelers').innerHTML = 'Joined (' + regels.length + '):<br>' + regels.join('<br>');
     $('masterTeller').innerHTML = s.players.length + (masterDicht ? ' &#9662;' : ' &#9652;');
     if (anderen > 0 && !masterAutoDicht) { masterAutoDicht = true; masterDicht = true; tekenMaster(); }
   }
@@ -763,17 +836,18 @@
   function toonStatus(s) {
     var k = HG.klok, regels = [];
     regels.push(k.verbonden
-      ? 'verbonden &middot; rondreis <b>' + k.rondreis.toFixed(1) + ' ms</b>'
-      : '<span class="slecht">geen verbinding met de Masterblaster</span>');
-    if (k.verbonden && k.rondreis > 30) regels.push('<span class="slecht">trage wifi, de sync kan wiebelen</span>');
-    if (!navigator.wakeLock) regels.push('scherm-aan niet beschikbaar: zet de schermtime-out lang');
-    if (s && s.sessieNaam) regels.push('sessie: <b>' + HG.escape(s.sessieNaam) + '</b>');
-    if (s && s.players && !isMaster) regels.push('spelers: ' + s.players.length);
+      ? 'connected &middot; round trip <b>' + k.rondreis.toFixed(1) + ' ms</b>'
+      : '<span class="slecht">no connection to the Masterblaster</span>');
+    if (k.verbonden && k.rondreis > 30) regels.push('<span class="slecht">slow wifi, sync may wobble</span>');
+    if (!navigator.wakeLock) regels.push('keep-awake not available: set a long screen timeout');
+    if (s && s.sessieNaam) regels.push('session: <b>' + HG.escape(s.sessieNaam) + '</b>');
+    if (s && s.players && !isMaster) regels.push('players: ' + s.players.length);
     $('status').innerHTML = regels.join('<br>');
   }
 
   HG.klok.opToestand(function (s, oud) {
     $('bpm').innerHTML = s.bpm;
+    $('swing').innerHTML = Math.round((s.swing || 0) * 100);
     $('startstop').innerHTML = s.running ? 'STOP' : 'START';
     toonStatus(s);
     toonSpelers(s);
@@ -785,8 +859,8 @@
     // Een andere sessie geladen of een nieuwe begonnen: klank en patronen opnieuw ophalen.
     if (bekendeLaadVersie !== null && s.laadVersie !== bekendeLaadVersie && rol && data[rol]) {
       var r = rol;
-      laadPlek(r, {}, function () { if (rol === r) tekenRol(); melding('SESSIE GELADEN', s.sessieNaam || 'nieuwe sessie'); });
-      $('sessieNaam').innerHTML = s.sessieNaam ? HG.escape(s.sessieNaam) : 'nog niet bewaard';
+      laadPlek(r, {}, function () { if (rol === r) tekenRol(); melding('SESSION LOADED', s.sessieNaam || 'new session'); });
+      $('sessieNaam').innerHTML = s.sessieNaam ? HG.escape(s.sessieNaam) : 'not saved yet';
     }
     bekendeLaadVersie = s.laadVersie;
   });
@@ -823,6 +897,12 @@
   HG.knop('startstop', function () { HG.klok.stuur({ action: HG.klok.st && HG.klok.st.running ? 'stop' : 'start' }); });
   HG.knop('tmin', function () { tempo(-1); });
   HG.knop('tplus', function () { tempo(1); });
+  function swing(dlt) {
+    if (!HG.klok.st) return;
+    HG.klok.stuur({ action: 'swing', swing: Math.round(((HG.klok.st.swing || 0) + dlt) * 100) / 100 });
+  }
+  HG.knop('swingMin', function () { swing(-0.05); });
+  HG.knop('swingPlus', function () { swing(0.05); });
   HG.knop('tmin10', function () { tempo(-10); });
   HG.knop('tplus10', function () { tempo(10); });
 
@@ -833,7 +913,7 @@
   HG.knop('lplus10', function () { zetLat(HG.planner.compensatie + 10); });
   zetLat(HG.planner.compensatie);
 
-  function tekenMetronoom() { $('klikAan').innerHTML = metronoom ? 'KLIK AAN' : 'KLIK UIT'; }
+  function tekenMetronoom() { $('klikAan').innerHTML = metronoom ? 'CLICK ON' : 'CLICK OFF'; }
   HG.knop('klikAan', function () { metronoom = !metronoom; HG.bewaar('klik', metronoom ? '1' : '0'); tekenMetronoom(); });
   tekenMetronoom();
 
@@ -843,6 +923,28 @@
     HG.klasse(el, 'verborgen', !open);
     if (open) { haalSessies(); haalPlekken(); haalKlanken(); }
   });
+
+  // Elk onderdeel van SETTINGS klapt los open en dicht, en dat wordt per toestel onthouden.
+  (function () {
+    var secties = document.querySelectorAll('#instellingen .sectie');
+    for (var i = 0; i < secties.length; i++) {
+      (function (sec) {
+        var naam = sec.getAttribute('data-sectie');
+        var kop = sec.querySelector('.skop'), inhoud = sec.querySelector('.sinhoud');
+        var pijl = kop.getElementsByTagName('span')[1];
+        function teken(open) {
+          HG.klasse(inhoud, 'verborgen', !open);
+          pijl.innerHTML = open ? '&#9662;' : '&#9656;';
+        }
+        teken(HG.haal('sectie_' + naam) === '1');
+        HG.knop(kop, function () {
+          var open = inhoud.className.indexOf('verborgen') >= 0;
+          HG.bewaar('sectie_' + naam, open ? '1' : '0');
+          teken(open);
+        });
+      })(secties[i]);
+    }
+  })();
 
   $('naam').value = mijnNaam;
   $('naam').addEventListener('change', function () {
@@ -856,19 +958,19 @@
   // ---------- rol kiezen en aanhaken ----------
 
   var gestart = false, gebouwd = {};
-  var rolNamen = { drums: 'drums', bas: 'bas', lead: 'lead', klik: 'kliktest' };
+  var rolNamen = { drums: 'drums', bas: 'bass', lead: 'lead', klik: 'click test' };
 
   function toonRolDelen() {
     HG.klasse($('drumsDeel'), 'verborgen', rol !== 'drums');
     HG.klasse($('notenDeel'), 'verborgen', !MONO[rol]);
     HG.klasse($('patronen'), 'verborgen', rol === 'klik');
     HG.klasse($('tellen'), 'groot', rol === 'klik');
-    $('rolNaam').innerHTML = rol === 'klik' ? 'kliktest' : HG.escape(plekNaam || rolNamen[rol]);
+    $('rolNaam').innerHTML = rol === 'klik' ? 'click test' : HG.escape(plekNaam || rolNamen[rol]);
   }
 
   function kies(nieuweRol) {
     if (!HG.audio.ctx && !HG.audio.maak()) {
-      $('poortinfo').innerHTML = 'Deze browser kan geen geluid maken. Hij kan later een andere rol krijgen.';
+      $('poortinfo').innerHTML = 'This browser cannot make sound. It can get another role later.';
       return;
     }
     if (HG.audio.ctx.resume) HG.audio.ctx.resume();
@@ -912,6 +1014,6 @@
   HG.knop('kiesBas', function () { kies('bas'); });
   HG.knop('kiesLead', function () { kies('lead'); });
   HG.knop('kiesKlik', function () { kies('klik'); });
-  HG.knop('kiesLater', function () { $('poortinfo').innerHTML = 'De pad komt in een volgende versie.'; });
+  HG.knop('kiesLater', function () { $('poortinfo').innerHTML = 'The pad arrives in a later version.'; });
 
 })(window.HG);

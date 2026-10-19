@@ -1,61 +1,60 @@
 # Himmelsgristle
 
-Een synthnetwerk van oude telefoons die samen in sync spelen. Eén telefoon is de **Masterblaster**: hij zet een hotspot op, draait een klein servertje en houdt de klok bij. Andere telefoons, tablets of laptops openen gewoon een webpagina en spelen mee. Geen internet, geen app-winkel, geen account.
+A modular synth network of old phones playing in sync. Industrial, electroclash, e-waste reborn.
 
-Richting: industrial en electroclash. Koud, ritmisch, een beetje vuil.
+One phone is the **Masterblaster**: it runs a hotspot, a tiny server and the clock. Other phones, tablets or laptops just open a web page and play along. No internet, no app store, no account.
 
-## Wat er nu in zit (versie 0.5)
+## What's in it (version 0.6)
 
-- Gedeelde klok tussen alle toestellen, met strak instappen op de maat en tempowissels op de volgende maat
-- **Drums:** vijf gesynthetiseerde stemmen (kick, snare, hihat, clap, metaal) in een matrix van 16 stappen, met accent per stap. Tik op de naam van een stem voor zijn knoppen, waaronder **Vuil** (overstuuring en bitcrush)
-- **Bas:** een monofone bas met resonant filter, glide en vuil, en een notenmatrix van een octaaf over 16 stappen
-- **Lead:** twee ontstemde oscillators met vibrato, filter, glide en vuil
-- **Patronen A tot D** per toestel; een wissel tijdens het spelen valt op de volgende maat
-- **Plekken:** elk instrument heeft een eigen plek in de sessie (BAS 1, BAS 2, DRUMS 1...) met eigen klank en patronen, en een naam die je zelf kiest. Een toestel dat terugkomt krijgt zijn plek terug (*Persistence is all*)
-- **Opslaan en uitwisselen:** sessies bewaren en laden op de Masterblaster, een klankbibliotheek per rol, en export en import van klanken, instrumenten en hele sessies als bestand
-- **Kliktest:** voor het afstellen van de compensatie per toestel
-- Op de Masterblaster: het spelersadres en een QR-code, die vanzelf inklapt zodra er een speler aangehaakt is
+- A shared clock across all devices: late joiners fall in on the beat, tempo changes land on the next bar, plus shared **swing**
+- **Drums:** five synthesized voices (kick, snare, hihat, clap, metal) in a 16-step matrix with accents. Tap a voice name for its knobs, including **Filth** (overdrive and bitcrush)
+- **Bass:** a mono bass with resonant filter, glide and filth, and a one-octave note matrix over 16 steps
+- **Lead:** two detuned oscillators with vibrato, filter, glide and filth
+- **Arpeggiator** on bass and lead: up, down, up/down or random, over an octave, fifth, minor, major, diminished, sus or minor 7 chord, across 1 to 3 octaves, in 1/16 or 1/32
+- **Patterns A to D** per device; switching while playing lands on the next bar
+- **Slots:** every instrument gets its own slot in the session (BASS 1, BASS 2, DRUMS 1...) with its own sound and patterns, and a name you choose. A device that comes back gets its slot back (*Persistence is all*)
+- **Saving and sharing:** sessions saved and loaded on the Masterblaster, a sound library per role, and export and import of sounds, instruments and whole sessions as files
+- **Click test** for setting the latency offset per device
+- On the Masterblaster: the player address and a QR code, which folds away once a player has joined
 
-## Masterblaster klaarzetten (eenmalig)
+## Setting up the Masterblaster (once)
 
-Op een Android-telefoon met [Termux](https://f-droid.org/packages/com.termux/) en [Termux:Widget](https://f-droid.org/packages/com.termux.widget/), allebei via F-Droid. Zorg dat de telefoon even internet heeft en typ in Termux:
+On an Android phone with [Termux](https://f-droid.org/packages/com.termux/) from F-Droid. Make sure the phone has internet for a moment and type in Termux:
 
 ```
 curl -sL https://raw.githubusercontent.com/HimmelsbachInternational/himmelsgristle/main/termux/eerste-keer.sh | bash
 ```
 
-Voortaan krijg je bij het openen van Termux een keuzemenu: **1** om te starten, **2** om bij te werken. Werkt je launcher met widgets, dan kun je ook de knoppen van Termux:Widget op je startscherm zetten.
+From then on Termux opens with a menu: **1** to start, **2** to update. If your launcher supports widgets, the same buttons are available through [Termux:Widget](https://f-droid.org/packages/com.termux.widget/). Switch off battery optimisation for Termux.
 
-Vraagt Android of Termux over andere apps mag tekenen, sta dat toe; anders kunnen de knoppen Termux niet openen. Zet ook de batterijbesparing voor Termux uit.
+## Playing
 
-## Spelen
+1. Switch on the **hotspot** on the Masterblaster.
+2. Open Termux and press **1**.
+3. On the Masterblaster, open `http://localhost:8080` in Chrome. The player address and QR code are there.
+4. Connect the other devices to the hotspot, switch their **mobile data off**, and scan the code or type the address.
+5. Choose a role on each device and press START.
 
-1. Zet op de Masterblaster de **hotspot** aan.
-2. Open Termux en kies **1** (of tik op de knop Himmelsgristle starten).
-3. Open op de Masterblaster in Chrome `http://localhost:8080`. Daar staan het spelersadres en de QR-code.
-4. Verbind de andere toestellen met de hotspot, zet hun **mobiele data uit**, en scan de code of typ het adres.
-5. Kies op elk toestel een rol en tik op START.
+If a device sounds late or early, adjust its latency offset under SETTINGS, TIMING. Each device remembers its own value.
 
-Klinkt een toestel te laat of te vroeg, stel dan onder INSTELLINGEN de compensatie bij. De waarde wordt per toestel onthouden.
+## Updating
 
-## Bijwerken
+Only the Masterblaster needs updating; the players load everything from it. Saved sessions live in the `opslag/` folder and survive updates. Switch the hotspot off and wifi on (or keep mobile data on), open Termux, press **2**, then switch the hotspot back on.
 
-Alleen de Masterblaster hoeft bijgewerkt te worden; de spelers laden alles van hem. Opgeslagen sessies staan in de map `opslag/` en blijven bij het bijwerken gewoon bewaard. Zet de hotspot even uit en wifi aan (of laat mobiele data aan), open Termux en kies **2**, en zet daarna de hotspot weer aan.
+## Sharing files
 
-## Hoe het werkt
+Under SETTINGS, SHARE you can export and import three kinds of file:
 
-De spelers vragen de Masterblaster steeds hoe laat het is en rekenen het verschil met hun eigen klok uit. Elke noot wordt een fractie van een seconde vooruit ingepland op de audioklok van het toestel zelf. Daardoor maakt een haperende wifi-verbinding niet uit voor de timing. Alles is gewone JavaScript, zodat ook oude telefoons en tablets meedoen.
-
-De QR-code wordt gemaakt met [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) van Kazuhiko Arase (MIT-licentie).
-
-## Bestanden uitwisselen
-
-Onder INSTELLINGEN kun je drie soorten bestanden exporteren en weer importeren:
-
-| Soort | Wat erin zit |
+| Kind | Contains |
 | --- | --- |
-| Klank | de stand van de knoppen van één instrument |
-| Instrument | klank plus de patronen A tot D |
-| Sessie | alle plekken, met het tempo |
+| Sound | the knob positions of one instrument |
+| Instrument | sound plus patterns A to D and the arpeggiator |
+| Session | all slots, with tempo and swing |
 
-Het zijn gewone JSON-bestanden met een kop als `{ "himmelsgristle": 1, "soort": "klank", "rol": "bas", ... }`. Importeren herkent zelf welke soort het is.
+They are plain JSON files with a header like `{ "himmelsgristle": 1, "soort": "klank", "rol": "bas", ... }`. Import works out the kind by itself.
+
+## How it works
+
+The players keep asking the Masterblaster what time it is and work out the difference with their own clock. Every note is scheduled a fraction of a second ahead on the device's own audio clock, so a stuttering wifi connection does not affect the timing. Everything is plain old JavaScript, so old phones and tablets can join.
+
+The QR code is made with [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) by Kazuhiko Arase (MIT licence).

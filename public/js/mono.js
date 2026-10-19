@@ -87,39 +87,38 @@
         vorigeAan = false;
       },
 
-      speel: function (stap, t, patroon, grond, p, stapDuur) {
+      // Plant één noot. legato: de volgende noot sluit aan, dus niet loslaten.
+      noot: function (t, midi, accent, duur, legato, p) {
         if (!stem) maakStem();
         stelIn(p);
-        var v = patroon[stap];
-        var volgende = patroon[(stap + 1) % 16];
         var amp = stem.amp.gain, ff = stem.filt.frequency;
-        if (v < 0) {
-          if (vorigeAan) amp.setTargetAtTime(0, t, 0.008);
-          vorigeAan = false;
-          return;
-        }
-        var accent = v >= 100, n = v % 100;
-        var f = HG.freq(grond + n);
+        var f = HG.freq(midi);
         var glijden = p.glide > 0.03;
-
         for (var i = 0; i < stem.oscs.length; i++) {
           var fq = stem.oscs[i].frequency;
           if (glijden && vorigeAan) fq.setTargetAtTime(f, t, 0.005 + p.glide * 0.09);
           else fq.setValueAtTime(f, t);
         }
-
         var basis = def.cutoffBasis * Math.pow(2, p.cutoff * 7.2);
         var top = Math.min(16000, basis * (1 + p.env * (accent ? 10 : 6)));
         ff.setValueAtTime(top, t);
         ff.setTargetAtTime(basis, t + 0.002, 0.02 + p.decay * 0.35);
+        amp.setTargetAtTime(p.vol * (accent ? 0.95 : 0.65), t, 0.002);
+        var vast = legato && glijden;
+        if (!vast) amp.setTargetAtTime(0, t + duur * def.gate, 0.012 + (p.release || 0) * 0.15);
+        vorigeAan = vast;
+      },
 
-        var piek = p.vol * (accent ? 0.95 : 0.65);
-        amp.setTargetAtTime(piek, t, 0.002);
+      rust: function (t) {
+        if (!stem) return;
+        if (vorigeAan) stem.amp.gain.setTargetAtTime(0, t, 0.008);
+        vorigeAan = false;
+      },
 
-        // Bij glijden naar een volgende noot blijft hij klinken; anders even los laten.
-        var legato = glijden && volgende >= 0;
-        if (!legato) amp.setTargetAtTime(0, t + stapDuur * def.gate, 0.012 + (p.release || 0) * 0.15);
-        vorigeAan = legato;
+      speel: function (stap, t, patroon, grond, p, stapDuur) {
+        var v = patroon[stap];
+        if (v < 0) { this.rust(t); return; }
+        this.noot(t, grond + v % 100, v >= 100, stapDuur, patroon[(stap + 1) % 16] >= 0, p);
       }
     };
   }
@@ -129,17 +128,17 @@
     cutoffBasis: 50,
     gate: 0.72,
     knoppen: [
-      ['golf', 'Zaag / blok', 0],
+      ['golf', 'Saw / square', 0],
       ['cutoff', 'Cutoff', 0.3],
-      ['reso', 'Resonantie', 0.6],
+      ['reso', 'Resonance', 0.6],
       ['env', 'Envelope', 0.55],
       ['decay', 'Decay', 0.3],
       ['glide', 'Glide', 0.2],
-      ['vuil', 'Vuil', 0.35],
+      ['vuil', 'Filth', 0.35],
       ['vol', 'Volume', 0.8]
     ],
-    // Een stuwende electroclash-baslijn.
-    patroon: [0, -1, 0, 12, -1, 0, 3, -1, 0, -1, 107, -1, 5, -1, 3, 102]
+    // Starts empty.
+    patroon: [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
   });
 
   HG.lead = maakMono({
@@ -149,20 +148,20 @@
     twee: true,
     vibrato: true,
     knoppen: [
-      ['golf', 'Zaag / blok', 0.6],
-      ['detune', 'Ontstemming', 0.35],
+      ['golf', 'Saw / square', 0.6],
+      ['detune', 'Detune', 0.35],
       ['cutoff', 'Cutoff', 0.45],
-      ['reso', 'Resonantie', 0.35],
+      ['reso', 'Resonance', 0.35],
       ['env', 'Envelope', 0.4],
       ['decay', 'Decay', 0.4],
       ['glide', 'Glide', 0.25],
       ['vibrato', 'Vibrato', 0.2],
       ['release', 'Release', 0.3],
-      ['vuil', 'Vuil', 0.2],
+      ['vuil', 'Filth', 0.2],
       ['vol', 'Volume', 0.55]
     ],
-    // Een kille, hoekige melodie.
-    patroon: [12, -1, 7, -1, 110, -1, 7, -1, 12, -1, 7, -1, 3, 5, 107, -1]
+    // B-A-C-H: B flat, A, C, B natural. The signature Bach hid in his own music. Himmelsbach, after all.
+    patroon: [110, -1, -1, -1, 9, -1, -1, -1, 112, -1, -1, -1, 11, -1, -1, -1]
   });
 
 })(window.HG);

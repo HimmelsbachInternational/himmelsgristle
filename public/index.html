@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -154,30 +154,44 @@
     background: var(--sein); color: var(--zwart); font-weight: bold; letter-spacing: 3px; text-align: center; font-size: 15px;
   }
   .melding small { display: block; letter-spacing: 1px; font-weight: normal; font-size: 12px; margin-top: 4px; }
+
+  /* settings sections */
+  .sectie { border-top: 1px solid var(--lijn); }
+  .sectie:last-child { border-bottom: 1px solid var(--lijn); }
+  .skop {
+    display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 48px;
+    background: transparent; border: 0; padding: 0 2px; font-size: 13px; letter-spacing: 2px; color: var(--tekst);
+  }
+  .skop span:last-child { color: var(--stil); }
+  .sinhoud { padding: 2px 0 12px; }
+
+  /* arp */
+  .arprij button { font-size: 12px; min-height: 44px; letter-spacing: 0; }
+  .arprij button.aan { background: var(--sein); color: var(--zwart); border-color: var(--sein); }
 </style>
 </head>
 <body>
 
 <div id="poort">
   <h1>HIMMELS<br>GRISTLE</h1>
-  <p>Kies wat dit toestel wordt.</p>
+  <p>Choose what this device becomes.</p>
   <button class="groot sein" id="kiesDrums">DRUMS</button>
-  <button class="groot sein" id="kiesBas">BAS</button>
+  <button class="groot sein" id="kiesBas">BASS</button>
   <button class="groot sein" id="kiesLead">LEAD</button>
-  <button class="groot" id="kiesKlik">KLIKTEST</button>
-  <button class="uit" id="kiesLater">PAD<br><small>komt nog</small></button>
+  <button class="groot" id="kiesKlik">CLICK TEST</button>
+  <button class="uit" id="kiesLater">PAD<br><small>coming soon</small></button>
   <p id="poortinfo"></p>
 </div>
 
-<!-- Alleen op de Masterblaster zelf: zo haken de andere telefoons aan -->
+<!-- Only on the Masterblaster itself: how the other phones join -->
 <div class="master verborgen" id="master">
-  <div class="titel" id="masterKop"><span>MASTERBLASTER &middot; AANHAKEN</span><span id="masterTeller"></span></div>
+  <div class="titel" id="masterKop"><span>MASTERBLASTER &middot; JOIN</span><span id="masterTeller"></span></div>
   <div class="inhoud" id="masterInhoud">
     <div class="samen">
       <div class="qr" id="qr"></div>
       <div>
-        <div class="adres" id="adres">adres zoeken...</div>
-        <div class="klein" id="adresUitleg">Andere telefoon op de hotspot, mobiele data uit, en dit adres openen of de code scannen.</div>
+        <div class="adres" id="adres">looking for address...</div>
+        <div class="klein" id="adresUitleg">Other phone on the hotspot, mobile data off, then open this address or scan the code.</div>
       </div>
     </div>
     <div class="klein" id="andereAdressen"></div>
@@ -201,39 +215,45 @@
   <button id="tplus">+</button>
 </div>
 
-<!-- Patronen -->
+<!-- Patterns -->
 <div class="rij patronen verborgen" id="patronen">
   <button id="patA">A</button><button id="patB">B</button><button id="patC">C</button><button id="patD">D</button>
-  <button id="patWis" class="wis">WIS</button>
+  <button id="patWis" class="wis">CLEAR</button>
 </div>
 
 <!-- Drums -->
 <div id="drumsDeel" class="verborgen">
   <div class="matrix" id="drumMatrix"></div>
-  <p class="uitleg">Tik op een vakje: aan, accent, uit. Tik op een naam voor de klank van die stem.</p>
+  <p class="uitleg">Tap a cell: on, accent, off. Tap a name for that voice's sound.</p>
   <div class="paneel verborgen" id="drumPaneel">
     <div class="pkop">
       <span class="ptitel" id="drumTitel"></span>
-      <button id="drumStil">STIL</button>
+      <button id="drumStil">MUTED</button>
       <button id="drumDicht">X</button>
     </div>
     <div class="knoppen" id="drumKnoppen"></div>
   </div>
 </div>
 
-<!-- Bas en lead -->
+<!-- Bass and lead -->
 <div id="notenDeel" class="verborgen">
   <div class="matrix noten" id="notenMatrix"></div>
-  <p class="uitleg">Een noot per stap. Nog eens tikken: accent. Nog eens: uit.</p>
+  <p class="uitleg">One note per step. Tap again: accent. Again: off. With the arp on, repeat a note over several steps to let it run.</p>
+  <div class="rij arprij">
+    <button id="arpModus">ARP OFF</button>
+    <button id="arpAkkoord">OCT</button>
+    <button id="arpBereik">1 OCT</button>
+    <button id="arpSnel">1/16</button>
+  </div>
   <div class="rij">
-    <button id="notenKlankKnop">KLANK</button>
+    <button id="notenKlankKnop">SOUND</button>
   </div>
   <div class="paneel verborgen" id="notenPaneel">
     <div class="pkop">
-      <span class="ptitel" id="notenTitel">BAS</span>
+      <span class="ptitel" id="notenTitel">BASS</span>
       <button id="notenDicht">X</button>
     </div>
-    <div class="label" style="margin-top:4px">grondtoon</div>
+    <div class="label" style="margin-top:4px">root note</div>
     <div class="rij">
       <button id="notenOctMin">OCT -</button>
       <button id="notenMin">-</button>
@@ -246,79 +266,110 @@
 </div>
 
 <div class="rij" style="margin-top:14px">
-  <button id="toonInstellingen">INSTELLINGEN</button>
+  <button id="toonInstellingen">SETTINGS</button>
 </div>
 
 <div id="instellingen" class="verborgen">
-  <div class="label">compensatie</div>
-  <div class="rij">
-    <button id="lmin10">-10</button>
-    <button id="lmin1">-1</button>
-    <div class="waarde"><span id="lat">0</span><small>ms</small></div>
-    <button id="lplus1">+1</button>
-    <button id="lplus10">+10</button>
-  </div>
-  <p class="uitleg">Klinkt deze telefoon te laat, schuif omhoog. Te vroeg, schuif omlaag. Goed is als alle klikken als &eacute;&eacute;n klinken.</p>
 
-  <div class="label">tempo grof</div>
-  <div class="rij">
-    <button id="tmin10">-10</button>
-    <button id="tplus10">+10</button>
+  <div class="sectie" data-sectie="timing">
+    <button class="skop"><span>TIMING</span><span></span></button>
+    <div class="sinhoud">
+      <div class="label">latency offset</div>
+      <div class="rij">
+        <button id="lmin10">-10</button>
+        <button id="lmin1">-1</button>
+        <div class="waarde"><span id="lat">0</span><small>ms</small></div>
+        <button id="lplus1">+1</button>
+        <button id="lplus10">+10</button>
+      </div>
+      <p class="uitleg">If this phone sounds late, go up. Early, go down. Right is when all clicks sound as one.</p>
+      <div class="label">tempo, big steps</div>
+      <div class="rij">
+        <button id="tmin10">-10</button>
+        <button id="tplus10">+10</button>
+      </div>
+      <div class="label">swing (all devices)</div>
+      <div class="rij">
+        <button id="swingMin">-</button>
+        <div class="waarde"><span id="swing">0</span><small>%</small></div>
+        <button id="swingPlus">+</button>
+      </div>
+      <div class="label">metronome</div>
+      <div class="rij">
+        <button id="klikAan">CLICK OFF</button>
+      </div>
+    </div>
   </div>
 
-  <div class="label">metronoom</div>
-  <div class="rij">
-    <button id="klikAan">KLIK UIT</button>
+  <div class="sectie" data-sectie="instrument">
+    <button class="skop"><span>THIS INSTRUMENT</span><span></span></button>
+    <div class="sinhoud">
+      <div class="sessienaam" id="plekNaam"></div>
+      <div class="rij">
+        <button class="half" id="plekHernoem">RENAME</button>
+        <button class="half" id="plekNieuw">NEW SLOT</button>
+      </div>
+      <div id="plekLijst"></div>
+      <p class="uitleg">Every instrument has its own slot in the session, with its own sound and patterns. Two basses? The second one gets BASS 2 by itself.</p>
+    </div>
   </div>
 
-  <div class="label">dit instrument</div>
-  <div class="sessienaam" id="plekNaam"></div>
-  <div class="rij">
-    <button class="half" id="plekHernoem">HERNOEMEN</button>
-    <button class="half" id="plekNieuw">NIEUWE PLEK</button>
+  <div class="sectie" data-sectie="sounds">
+    <button class="skop"><span>SOUND LIBRARY</span><span></span></button>
+    <div class="sinhoud">
+      <div class="rij">
+        <button id="klankBewaar">SAVE SOUND</button>
+      </div>
+      <div id="klankLijst"></div>
+      <p class="uitleg">A sound is just the position of the knobs. Loading one leaves your patterns alone.</p>
+    </div>
   </div>
-  <div id="plekLijst"></div>
-  <p class="uitleg">Elk instrument heeft een eigen plek in de sessie, met eigen klank en patronen. Twee bassen? Dan krijgt de tweede vanzelf BAS 2.</p>
 
-  <div class="label">klankbibliotheek</div>
-  <div class="rij">
-    <button id="klankBewaar">KLANK BEWAREN</button>
+  <div class="sectie" data-sectie="session">
+    <button class="skop"><span>SESSION</span><span></span></button>
+    <div class="sinhoud">
+      <div class="sessienaam" id="sessieNaam">not saved yet</div>
+      <div class="rij">
+        <button id="sessieBewaar">SAVE AS</button>
+        <button id="sessieNieuw">NEW</button>
+      </div>
+      <div id="sessieLijst"></div>
+      <p class="uitleg">Everything is also remembered on the Masterblaster. Save as keeps a copy under a name, tempo and swing included.</p>
+    </div>
   </div>
-  <div id="klankLijst"></div>
-  <p class="uitleg">Een klank is alleen de stand van de knoppen. Laden verandert je patronen niet.</p>
 
-  <div class="label">sessie</div>
-  <div class="sessienaam" id="sessieNaam">nog niet bewaard</div>
-  <div class="rij">
-    <button id="sessieBewaar">OPSLAAN ALS</button>
-    <button id="sessieNieuw">NIEUW</button>
+  <div class="sectie" data-sectie="share">
+    <button class="skop"><span>SHARE</span><span></span></button>
+    <div class="sinhoud">
+      <div class="rij">
+        <button class="half" id="exportKlank">EXPORT SOUND</button>
+        <button class="half" id="exportInstrument">EXPORT INSTRUMENT</button>
+      </div>
+      <div class="rij">
+        <button class="half" id="exportSessie">EXPORT SESSION</button>
+        <button class="half" id="importKnop">IMPORT</button>
+      </div>
+      <input type="file" id="importBestand" accept=".json,application/json,text/plain" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <p class="uitleg">Export makes a file you can share. Import works out by itself whether it is a sound, an instrument or a session.</p>
+    </div>
   </div>
-  <div id="sessieLijst"></div>
-  <p class="uitleg">Alles wordt ook gewoon onthouden op de Masterblaster. Opslaan als bewaart een kopie onder een naam, met het tempo erbij.</p>
 
-  <div class="label">uitwisselen</div>
-  <div class="rij">
-    <button class="half" id="exportKlank">EXPORT KLANK</button>
-    <button class="half" id="exportInstrument">EXPORT INSTRUMENT</button>
+  <div class="sectie" data-sectie="device">
+    <button class="skop"><span>THIS DEVICE</span><span></span></button>
+    <div class="sinhoud">
+      <div class="label">device name</div>
+      <input type="text" id="naam" maxlength="30" autocomplete="off">
+      <div class="label">role</div>
+      <div class="rij">
+        <button id="wisselRol">CHOOSE ANOTHER ROLE</button>
+      </div>
+    </div>
   </div>
-  <div class="rij">
-    <button class="half" id="exportSessie">EXPORT SESSIE</button>
-    <button class="half" id="importKnop">IMPORTEREN</button>
-  </div>
-  <input type="file" id="importBestand" accept=".json,application/json,text/plain" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
-  <p class="uitleg">Exporteren maakt een bestand dat je kunt delen. Importeren herkent zelf of het een klank, instrument of sessie is.</p>
 
-  <div class="label">naam van dit toestel</div>
-  <input type="text" id="naam" maxlength="30" autocomplete="off">
-
-  <div class="label">rol</div>
-  <div class="rij">
-    <button id="wisselRol">ANDERE ROL KIEZEN</button>
-  </div>
 </div>
 
 <div class="melding verborgen" id="melding"></div>
-<div class="status" id="status">verbinden...</div>
+<div class="status" id="status">connecting...</div>
 <div class="voet" id="voet">Himmelsgristle</div>
 
 <script src="vendor/qrcode.js"></script>

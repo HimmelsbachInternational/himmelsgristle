@@ -181,6 +181,8 @@
       var sTijd = stapTijd(planner.volgende);
       var wanneer = (sTijd - klok.verschil - audio.perfBijNul - planner.compensatie) / 1000;
       if (!audio.metUitvoer) wanneer -= (ctx.outputLatency || ctx.baseLatency || 0);
+      // Swing: elke tweede zestiende schuift een stukje op.
+      if (s.swing && planner.volgende % 2 !== 0) wanneer += s.swing * 0.5 * (15 / s.bpm);
       if (wanneer > grens) break;
       if (wanneer > ctx.currentTime && planner.opStap) {
         var stap = ((planner.volgende % 16) + 16) % 16;

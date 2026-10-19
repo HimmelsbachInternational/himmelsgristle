@@ -8,7 +8,7 @@ var path = require('path');
 var os = require('os');
 var perf = require('perf_hooks').performance;
 
-var VERSIE = '0.5';
+var VERSIE = '0.6';
 var PORT = parseInt(process.env.PORT, 10) || 8080;
 var PUBLIC = path.join(__dirname, 'public');
 
@@ -23,6 +23,7 @@ var state = {
   anchorTime: 0,
   anchorBeat: 0,
   beatsPerBar: 4,
+  swing: 0,
   prev: null
 };
 
@@ -67,6 +68,10 @@ function applyChange(body) {
       state.anchorTime = nb.time;
     }
     state.bpm = bpm;
+  } else if (body.action === 'swing') {
+    var sw = Math.round(Math.max(0, Math.min(0.6, Number(body.swing) || 0)) * 100) / 100;
+    if (sw === state.swing) return;
+    state.swing = sw;
   } else {
     return;
   }
@@ -87,6 +92,7 @@ function publicState() {
     anchorTime: state.anchorTime,
     anchorBeat: state.anchorBeat,
     beatsPerBar: state.beatsPerBar,
+    swing: state.swing,
     prev: state.prev,
     laadVersie: opslag.laadVersie(),
     sessieNaam: opslag.sessieNaam(),
@@ -148,6 +154,10 @@ function bezet(plekId, apparaat) {
     if (id !== apparaat && players[id].plek === plekId && t - players[id].seen < 5000) return true;
   }
   return false;
+}
+
+function zetSwing(sw) {
+  if (typeof sw === 'number') applyChange({ action: 'swing', swing: sw });
 }
 
 function zetTempo(bpm) {
@@ -222,7 +232,7 @@ var server = http.createServer(function (req, res) {
         players[apparaat].plek = uit.plek;
         players[apparaat].seen = now();
       }
-      sendJSON(res, uit || { fout: 'onbekende rol' });
+      sendJSON(res, uit || { fout: 'unknown role' });
     });
   }
 
@@ -241,8 +251,9 @@ var server = http.createServer(function (req, res) {
   if (url === '/api/sessies') {
     if (req.method === 'POST') {
       return readBody(req, function (body) {
-        var g = opslag.sessieActie(body, state.bpm);
+        var g = opslag.sessieActie(body, { bpm: state.bpm, swing: state.swing });
         if (g.tempo) zetTempo(g.tempo);
+        zetSwing(g.swing);
         sendJSON(res, g.antwoord);
       });
     }
@@ -263,8 +274,8 @@ var server = http.createServer(function (req, res) {
   }
 
   if (url === '/api/export') {
-    var ex = opslag.exporteer(vraag.soort, vraag.plek, state.bpm);
-    if (!ex) return send(res, 404, 'text/plain', 'niets om te exporteren');
+    var ex = opslag.exporteer(vraag.soort, vraag.plek, { bpm: state.bpm, swing: state.swing });
+    if (!ex) return send(res, 404, 'text/plain', 'nothing to export');
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Content-Disposition': 'attachment; filename="' + ex.bestandsnaam + '"',
@@ -277,6 +288,7 @@ var server = http.createServer(function (req, res) {
     return readBody(req, function (body) {
       var uit = opslag.importeer(body.bestand, String(body.plek || ''));
       if (uit.tempo) zetTempo(uit.tempo);
+      zetSwing(uit.swing);
       sendJSON(res, uit);
     });
   }
@@ -307,9 +319,9 @@ var server = http.createServer(function (req, res) {
   // Statische bestanden uit public/
   var file = url === '/' ? '/index.html' : url;
   var full = path.normalize(path.join(PUBLIC, file));
-  if (full.indexOf(PUBLIC) !== 0) return send(res, 403, 'text/plain', 'nee');
+  if (full.indexOf(PUBLIC) !== 0) return send(res, 403, 'text/plain', 'no');
   fs.readFile(full, function (err, buf) {
-    if (err) return send(res, 404, 'text/plain', 'niet gevonden');
+    if (err) return send(res, 404, 'text/plain', 'not found');
     send(res, 200, TYPES[path.extname(full)] || 'application/octet-stream', buf);
   });
 });
@@ -317,8 +329,8 @@ var server = http.createServer(function (req, res) {
 server.on('error', function (e) {
   if (e.code === 'EADDRINUSE') {
     console.log('');
-    console.log('  De server draait al (poort ' + PORT + ' is bezet).');
-    console.log('  Open gewoon http://localhost:' + PORT + ' in Chrome.');
+    console.log('  The server is already running (port ' + PORT + ' is taken).');
+    console.log('  Just open http://localhost:' + PORT + ' in Chrome.');
     console.log('');
     process.exit(0);
   }
@@ -327,17 +339,17 @@ server.on('error', function (e) {
 
 server.listen(PORT, '0.0.0.0', function () {
   console.log('');
-  console.log('  HIMMELSGRISTLE ' + VERSIE + '  Masterblaster draait');
+  console.log('  HIMMELSGRISTLE ' + VERSIE + '  Masterblaster running');
   console.log('');
-  console.log('  Open op deze telefoon in Chrome:   http://localhost:' + PORT);
-  console.log('  Daar staan het spelersadres en de QR-code.');
+  console.log('  Open on this phone in Chrome:   http://localhost:' + PORT);
+  console.log('  The player address and QR code are there.');
   var a = info();
   if (a.alle.length) {
     console.log('');
-    console.log('  Voor de spelers, waarschijnlijk:  ' + a.beste);
-    if (a.alle.length > 1) console.log('  Andere adressen: ' + a.alle.slice(1).join('  '));
+    console.log('  For the players, probably:      ' + a.beste);
+    if (a.alle.length > 1) console.log('  Other addresses: ' + a.alle.slice(1).join('  '));
   }
   console.log('');
-  console.log('  Stoppen: volume-omlaag + C');
+  console.log('  Stop: volume down + C');
   console.log('');
 });
